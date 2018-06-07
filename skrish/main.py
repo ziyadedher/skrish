@@ -12,6 +12,7 @@ def main():
 
     # Initialize interface
     with cli.Interface(game) as interface:
+        interface.scener.main_menu()
         interface.error("Do you know the muffin man?")
 
 
