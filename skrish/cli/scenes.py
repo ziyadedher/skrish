@@ -2,6 +2,7 @@
 """
 import curses
 import time
+from typing import Tuple, List
 
 from skrish.cli import util
 
@@ -44,39 +45,40 @@ class Scener:
         center_y, center_x = util.centeryx(self.__screen, TITLE, vertical=True, horizontal=True)
         self.__screen.display(TITLE, center_y - 10, center_x, util.ColorPair.TITLE.pair)
 
+        self._generate_menu([("START", lambda: None), ("OPTIONS", lambda: None), ("CREDITS", lambda: None), ("QUIT", lambda: None)],
+                            spacing=2, min_width=25)
+
+    def _generate_menu(self, options: List[Tuple[str, callable]], spacing: int = 2, min_width: int = 0) -> None:
+        """Generate a menu with the given options.
+        """
         self.__screen.nodelay(True)
-        selection = 0
+
+        selection = -1
+        num_selections = len(options)
+        width = max(min_width, max(len(option[0]) for option in options))
 
         while True:
             key = self.__screen.getch()
+            if selection == -1:
+                selection = 0
+                key = 1
 
             if key == 10:  # chr(10) == "\n"
                 break
             if key == curses.KEY_UP:
                 selection -= 1
-                selection %= 5
+                selection %= num_selections
             if key == curses.KEY_DOWN:
                 selection += 1
-                selection %= 5
+                selection %= num_selections
+            if key <= 0:
+                continue
 
-            message = "Start"
-            center_y, center_x = util.centeryx(self.__screen, message, vertical=True, horizontal=True)
-            self.__screen.display(message, center_y, center_x, curses.A_UNDERLINE if selection == 0 else curses.A_NORMAL)
-
-            message = "Option 1"
-            center_y, center_x = util.centeryx(self.__screen, message, vertical=True, horizontal=True)
-            self.__screen.display(message, center_y + 2, center_x, curses.A_UNDERLINE if selection == 1 else curses.A_NORMAL)
-
-            message = "Option 2"
-            center_y, center_x = util.centeryx(self.__screen, message, vertical=True, horizontal=True)
-            self.__screen.display(message, center_y + 4, center_x, curses.A_UNDERLINE if selection == 2 else curses.A_NORMAL)
-
-            message = "Option 3"
-            center_y, center_x = util.centeryx(self.__screen, message, vertical=True, horizontal=True)
-            self.__screen.display(message, center_y + 6, center_x, curses.A_UNDERLINE if selection == 3 else curses.A_NORMAL)
-
-            message = "Quit"
-            center_y, center_x = util.centeryx(self.__screen, message, vertical=True, horizontal=True)
-            self.__screen.display(message, center_y + 8, center_x, curses.A_UNDERLINE if selection == 4 else curses.A_NORMAL)
+            for i, option in enumerate(options):
+                message, action = option
+                message = "[ " + message.center(width) + " ]"
+                center_y, center_x = util.centeryx(self.__screen, message, vertical=True, horizontal=True)
+                self.__screen.display(message, center_y + i * spacing, center_x, curses.A_UNDERLINE if selection == i else curses.A_NORMAL)
 
         self.__screen.nodelay(False)
+
