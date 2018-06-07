@@ -39,13 +39,14 @@ def centeryx(stdscr, message: str, vertical=True, horizontal=True) -> Tuple[int,
 def positionyx(stdscr, message: str, vertical=None, horizontal=None) -> Tuple[int, int]:
     """Return the y and x parameters required to position the given <message> at the given percentages of the screen.
     """
-    message_length = len(message)
+    message_array = message.split("\n")
+    message_length = max(len(line) for line in message_array)
     y_max, x_max = stdscr.getmaxyx()
     y, x = stdscr.getyx()
 
     y_start, x_start = y, x
     if vertical:
-        y_start = int(y_max * vertical)
+        y_start = int((y_max - len(message_array) - 1) * vertical)
     if horizontal:
         x_start = int((x_max - message_length) * horizontal)
 

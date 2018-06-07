@@ -1,16 +1,17 @@
 """Provides the entry function to the game.
 """
+from skrish.game.game import Game
 from skrish.cli import cli
 
 
 def main():
     """Main entry point to the game.
     """
-    # Game initialization
-    # TODO: initialize game
+    # Initialize game
+    game = Game()
 
-    # Interface initialization
-    with cli.Interface() as interface:
+    # Initialize interface
+    with cli.Interface(game) as interface:
         interface.error("Do you know the muffin man?")
 
 

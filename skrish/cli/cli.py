@@ -3,16 +3,23 @@
 import curses
 
 from skrish.cli import util
+from skrish.cli.screen import Screen
+from skrish.cli.scenes import Scener
+from skrish.game.game import Game
 
 
 class Interface:
     """Manages the command-line interface on a high-level.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, game: Game) -> None:
         """Initialize the command-line interface.
         """
-        self.__screen = curses.initscr()
+        self.__screen = Screen(curses.initscr())
+        self.__curses_config()
+
+        self.scener = Scener(self.__screen)
+        self.game = game
 
     def __enter__(self) -> 'Interface':
         """Called upon calling the interface using `with`.
@@ -28,7 +35,7 @@ class Interface:
     def start(self) -> None:
         """Start the interface.
         """
-        self.__curses_config()
+        self.scener.intro_sequence()
 
     def error(self, message: str) -> None:
         """Display an error <message> to screen and wait for user input.
@@ -38,10 +45,13 @@ class Interface:
         self.__screen.clear()
         self.__screen.border()
 
-        y, x = util.positionyx(self.__screen, top_bar_message, vertical=0.1, horizontal=0.5)
-        self.__screen.addstr(y, x, top_bar_message, util.ColorPair.ERROR.pair)
+        self.__screen.display(top_bar_message,
+                              *util.positionyx(self.__screen, top_bar_message, vertical=0.1, horizontal=0.5),
+                              util.ColorPair.ERROR.pair)
 
-        self.__screen.addstr(*util.centeryx(self.__screen, message), message)
+        self.__screen.display(message,
+                              *util.centeryx(self.__screen, message),
+                              util.ColorPair.STANDARD.pair)
 
         self.__screen.refresh()
         self.__screen.getkey()
