@@ -75,10 +75,12 @@ class Scener:
                 continue
 
             for i, option in enumerate(options):
-                message, action = option
+                message = option[0]
                 message = "[ " + message.center(width) + " ]"
                 center_y, center_x = util.centeryx(self.__screen, message, vertical=True, horizontal=True)
                 self.__screen.display(message, center_y + i * spacing, center_x, curses.A_UNDERLINE if selection == i else curses.A_NORMAL)
+
+        options[selection][1]()  # Call the option's action
 
         self.__screen.nodelay(False)
 
