@@ -87,8 +87,13 @@ class CreditsScene(Scene):
     def display(self) -> None:
         screen.clear()
 
-        center_y, center_x = screen.positionyx("HERE GO THE CREDITS!", vertical=0.5, horizontal=0.5)
-        screen.display("HERE GO THE CREDITS!", center_y, center_x, util.ColorPair.TITLE.pair)
+        text = "Credits"
+        screen.display(text, *screen.positionyx(text, vertical=0.4, horizontal=0.5),
+                       util.ColorPair.SUCCESS.pair)
+
+        text = "Ziyad Edher"
+        screen.display(text, *screen.positionyx(text, vertical=0.5, horizontal=0.5),
+                       util.ColorPair.STANDARD.pair)
 
         _watch_keys([])
 
