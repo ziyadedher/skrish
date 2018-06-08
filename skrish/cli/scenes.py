@@ -4,7 +4,7 @@ import curses
 from typing import Tuple, List
 
 from skrish.cli import util
-from skrish.cli.scene_manager import Scene, register_scene, call_scene
+from skrish.cli.scene_manager import Scene, SceneManager
 from skrish.cli.cli import Interface
 
 
@@ -23,6 +23,13 @@ TITLE = """
 interface = Interface.instance
 screen = interface.screen
 game = interface.game
+
+register_scene = SceneManager.register_scene
+call_scene = SceneManager.call_scene
+go_back = SceneManager.go_back
+
+
+BACK_KEY = curses.KEY_BACKSPACE
 
 
 @register_scene("intro")
@@ -45,10 +52,10 @@ class MainMenuScene(Scene):
         screen.display(TITLE, center_y - 10, center_x, util.ColorPair.TITLE.pair)
 
         _generate_menu([("START", lambda: None),
-                         ("OPTIONS", lambda: OptionsScene().display()),
-                         ("CONTROLS", lambda: ControlsScene().display()),
-                         ("CREDITS", lambda: CreditsScene().display()),
-                         ("QUIT", lambda: QuitScene().display())],
+                         ("OPTIONS", lambda: call_scene("options")),
+                         ("CONTROLS", lambda: call_scene("controls")),
+                         ("CREDITS", lambda: call_scene("credits")),
+                         ("QUIT", lambda: call_scene("quit"))],
                        spacing=2, min_width=25, selected_style=curses.A_BOLD)
 
 
@@ -60,9 +67,12 @@ class OptionsScene(Scene):
         center_y, center_x = screen.positionyx("HERE GO THE OPTIONS!", vertical=0.5, horizontal=0.5)
         screen.display("HERE GO THE OPTIONS!", center_y, center_x, util.ColorPair.TITLE.pair)
 
-        while screen.getch() != 27:
+        key = -1
+        while key != BACK_KEY:
             pass
-        return
+            key = screen.getch()
+        go_back()
+
 
 @register_scene("controls")
 class ControlsScene(Scene):
@@ -72,9 +82,12 @@ class ControlsScene(Scene):
         center_y, center_x = screen.positionyx("HERE GO THE CONTROLS!", vertical=0.5, horizontal=0.5)
         screen.display("HERE GO THE CONTROLS!", center_y, center_x, util.ColorPair.TITLE.pair)
 
-        while screen.getch() != 27:
+        key = -1
+        while key != BACK_KEY:
             pass
-        return
+            key = screen.getch()
+        go_back()
+
 
 @register_scene("credits")
 class CreditsScene(Scene):
@@ -84,9 +97,11 @@ class CreditsScene(Scene):
         center_y, center_x = screen.positionyx("HERE GO THE CREDITS!", vertical=0.5, horizontal=0.5)
         screen.display("HERE GO THE CREDITS!", center_y, center_x, util.ColorPair.TITLE.pair)
 
-        while screen.getch() != 27:
+        key = -1
+        while key != BACK_KEY:
             pass
-        return
+            key = screen.getch()
+        go_back()
 
 
 @register_scene("quit")
@@ -97,9 +112,11 @@ class QuitScene(Scene):
         center_y, center_x = screen.positionyx("HERE GO THE QUIT!", vertical=0.5, horizontal=0.5)
         screen.display("HERE GO THE QUIT!", center_y, center_x, util.ColorPair.TITLE.pair)
 
-        while screen.getch() != 27:
+        key = -1
+        while key != BACK_KEY:
             pass
-        return
+            key = screen.getch()
+        go_back()
 
 
 def _generate_menu(options: List[Tuple[str, callable]],
@@ -138,8 +155,3 @@ def _generate_menu(options: List[Tuple[str, callable]],
 
     screen.nodelay(False)
     options[selection][1]()  # Call the option's action
-
-def noop():
-    """No operation. Used to prevent linter shouting at me.
-    """
-    pass

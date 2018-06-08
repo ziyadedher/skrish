@@ -31,8 +31,10 @@ class Interface:
         def call_scene(identifier: str) -> None:
             """Call the scene with the given <identifier>.
             """
-            from skrish.cli.scene_manager import call_scene
-            call_scene(identifier)
+            # noinspection PyUnresolvedReferences
+            from skrish.cli import scenes  # importing in order to index the scenes
+            from skrish.cli.scene_manager import SceneManager
+            SceneManager.call_scene(identifier, no_back=True)
 
         def error(self, message: str) -> None:
             """Display an error <message> to screen and wait for user input.
