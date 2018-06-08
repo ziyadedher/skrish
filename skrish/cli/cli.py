@@ -4,81 +4,95 @@ import curses
 
 from skrish.cli import util
 from skrish.cli.screen import Screen
-from skrish.cli.scenes import Scener
 from skrish.game.game import Game
 
 
 class Interface:
-    """Manages the command-line interface on a high-level.
+    """Manages and controls the flow of game scenes.
     """
-    __screen: Screen
-    scener: Scener
-    game: Game
+    class __Interface:
+        screen: Screen
+        game: Game
 
-    def __init__(self, game: Game) -> None:
-        """Initialize the command-line interface.
-        """
-        self.__screen = Screen(curses.initscr())
-        self.__curses_config()
+        def __init__(self, game: Game) -> None:
+            """Initialize the command-line interface.
+            """
+            self.screen = None
+            self.game = game
 
-        self.scener = Scener(self.__screen)
-        self.game = game
+        def start(self) -> None:
+            """Start the interface.
+            """
+            self.screen = Screen(curses.initscr())
+            self.__curses_config()
 
-    def __enter__(self) -> 'Interface':
+        @staticmethod
+        def call_scene(identifier: str) -> None:
+            """Call the scene with the given <identifier>.
+            """
+            from skrish.cli.scenes import call_scene
+            call_scene(identifier)
+
+        def error(self, message: str) -> None:
+            """Display an error <message> to screen and wait for user input.
+            """
+            top_bar_message = "Oops! Something went wrong and an error has occured."
+
+            self.screen.clear()
+            self.screen.border()
+
+            self.screen.display(top_bar_message,
+                                *self.screen.positionyx(top_bar_message, vertical=0.1, horizontal=0.5),
+                                util.ColorPair.ERROR.pair)
+
+            self.screen.display(message,
+                                *self.screen.positionyx(message, vertical=0.5, horizontal=0.5),
+                                util.ColorPair.STANDARD.pair)
+
+            self.screen.refresh()
+            self.screen.getkey()
+
+        def exit(self) -> None:
+            """Exit the interface cleanly with no error.
+            """
+            self.__curses_deconfig()
+            curses.endwin()
+
+        def __curses_config(self) -> None:
+            """Configure curses to default game settings.
+            """
+            curses.noecho()  # Do not display typed keys by default
+            curses.cbreak()  # Do not wait for `ENTER` key to read keystrokes
+            curses.curs_set(0)  # Do not display the cursor
+            curses.start_color()  # Allow coloring
+            util.ColorPair.init_color_pairs()  # Initialize custom color pairs
+            self.screen.keypad(True)  # Parse weird keys
+
+        def __curses_deconfig(self) -> None:
+            """Deconfigure curses to revert nice terminal settings.
+            """
+            curses.echo()
+            curses.nocbreak()
+            curses.curs_set(1)
+            self.screen.keypad(False)
+
+    instance: __Interface = None
+
+    def __init__(self, game: Game):
+        if not Interface.instance:
+            Interface.instance = Interface.__Interface(game)
+        else:
+            Interface.instance.game = game
+
+    def __getattr__(self, name: str):
+        return getattr(self.instance, name)
+
+    def __enter__(self):
         """Called upon calling the interface using `with`.
         """
-        self.start()
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb) -> None:
         """Called upon exiting the scope of the interface using `with`.
         """
         self.exit()
-
-    def start(self) -> None:
-        """Start the interface.
-        """
-        self.scener.intro_sequence()
-
-    def error(self, message: str) -> None:
-        """Display an error <message> to screen and wait for user input.
-        """
-        top_bar_message = "Oops! Something went wrong and an error has occured."
-
-        self.__screen.clear()
-        self.__screen.border()
-
-        self.__screen.display(top_bar_message,
-                              *self.__screen.positionyx(top_bar_message, vertical=0.1, horizontal=0.5),
-                              util.ColorPair.ERROR.pair)
-
-        self.__screen.display(message,
-                              *self.__screen.positionyx(message, vertical=0.5, horizontal=0.5),
-                              util.ColorPair.STANDARD.pair)
-
-        self.__screen.refresh()
-        self.__screen.getkey()
-
-    def exit(self) -> None:
-        """Exit the interface cleanly with no error.
-        """
-        self.__curses_deconfig()
-        curses.endwin()
-
-    def __curses_config(self) -> None:
-        """Configure curses to default game settings.
-        """
-        curses.noecho()                    # Do not display typed keys by default
-        curses.cbreak()                    # Do not wait for `ENTER` key to read keystrokes
-        curses.curs_set(0)                 # Do not display the cursor
-        curses.start_color()               # Allow coloring
-        util.ColorPair.init_color_pairs()  # Initialize custom color pairs
-        self.__screen.keypad(True)         # Parse weird keys
-
-    def __curses_deconfig(self) -> None:
-        """Deconfigure curses to revert nice terminal settings.
-        """
-        curses.echo()
-        curses.nocbreak()
-        curses.curs_set(1)
-        self.__screen.keypad(False)
