@@ -46,11 +46,11 @@ class Interface:
         self.__screen.border()
 
         self.__screen.display(top_bar_message,
-                              *util.positionyx(self.__screen, top_bar_message, vertical=0.1, horizontal=0.5),
+                              *self.__screen.positionyx(top_bar_message, vertical=0.1, horizontal=0.5),
                               util.ColorPair.ERROR.pair)
 
         self.__screen.display(message,
-                              *util.centeryx(self.__screen, message),
+                              *self.__screen.positionyx(message, vertical=0.5, horizontal=0.5),
                               util.ColorPair.STANDARD.pair)
 
         self.__screen.refresh()

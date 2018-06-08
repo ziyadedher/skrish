@@ -33,7 +33,7 @@ class Scener:
         """
         self.__screen.clear()
 
-        center_y, center_x = util.centeryx(self.__screen, TITLE, vertical=True, horizontal=True)
+        center_y, center_x = self.__screen.centeryx(TITLE, vertical=True, horizontal=True)
         start = -max(len(line) for line in TITLE.split("\n"))
         self.__screen.scroll_message(TITLE, 50, center_y - 10, start, center_y - 10, center_x,
                                      util.ColorPair.TITLE.pair, skippable=True)
@@ -42,13 +42,17 @@ class Scener:
     def main_menu(self) -> None:
         self.__screen.clear()
 
-        center_y, center_x = util.centeryx(self.__screen, TITLE, vertical=True, horizontal=True)
+        center_y, center_x = self.__screen.centeryx(TITLE, vertical=True, horizontal=True)
         self.__screen.display(TITLE, center_y - 10, center_x, util.ColorPair.TITLE.pair)
 
-        self._generate_menu([("START", lambda: None), ("OPTIONS", lambda: None), ("CREDITS", lambda: None), ("QUIT", lambda: None)],
-                            spacing=2, min_width=25)
+        self._generate_menu([("START", lambda: None),
+                             ("OPTIONS", lambda: None),
+                             ("CREDITS", lambda: None),
+                             ("QUIT", lambda: None)],
+                            spacing=2, min_width=25, selected_style=curses.A_BOLD)
 
-    def _generate_menu(self, options: List[Tuple[str, callable]], spacing: int = 2, min_width: int = 0) -> None:
+    def _generate_menu(self, options: List[Tuple[str, callable]],
+                       spacing: int = 2, min_width: int = 0, selected_style=curses.A_STANDOUT) -> None:
         """Generate a menu with the given options.
         """
         self.__screen.nodelay(True)
@@ -77,8 +81,9 @@ class Scener:
             for i, option in enumerate(options):
                 message = option[0]
                 message = "[ " + message.center(width) + " ]"
-                center_y, center_x = util.centeryx(self.__screen, message, vertical=True, horizontal=True)
-                self.__screen.display(message, center_y + i * spacing, center_x, curses.A_UNDERLINE if selection == i else curses.A_NORMAL)
+                center_y, center_x = self.__screen.centeryx(message, vertical=True, horizontal=True)
+                self.__screen.display(message, center_y + i * spacing, center_x,
+                                      util.ColorPair.SELECTED.pair | selected_style if selection == i else curses.A_NORMAL)
 
         options[selection][1]()  # Call the option's action
 

@@ -1,9 +1,7 @@
 """Manages a screen wrapper class around the default curses window.
 """
 import time
-from typing import Optional
-
-from skrish.cli import util
+from typing import Optional, Tuple
 
 
 class Screen:
@@ -42,13 +40,15 @@ class Screen:
                                line, *args)
             offset += 1
 
+    # TODO: reimplement scrolling
+    # FIXME: implement vertical scrolling
+    # FIXME: use the anti-clear technique in all directions
     def scroll_message(self, message: str, speed: int,
                        y_start: int, x_start: int, y_end: int, x_end: int,
                        *args, skippable=False) -> None:
         """Scroll the given <message> from <y_start>, <x_start> to <y_end>, <x_end> where the end's must be greater
         than or equal to the respective starts.
         """
-        # TODO: implement vertical scrolling
 
         self.screen.nodelay(True)
 
@@ -68,7 +68,6 @@ class Screen:
             self.display(anti_clear,
                          round(y), round(x),
                          *args)
-            self.refresh()
 
             deltatime = time.time() - start_time
             change = speed * deltatime
@@ -84,4 +83,20 @@ class Screen:
                 cur_x = x_end
 
         self.screen.nodelay(False)
+
+    def positionyx(self, message: str, vertical=None, horizontal=None) -> Tuple[int, int]:
+        """Return the y and x parameters required to position the given <message> at the given percentages of the screen.
+        """
+        message_array = message.split("\n")
+        message_length = max(len(line) for line in message_array)
+        y_max, x_max = self.getmaxyx()
+        y, x = self.getyx()
+
+        y_start, x_start = y, x
+        if vertical:
+            y_start = int((y_max - len(message_array) - 1) * vertical)
+        if horizontal:
+            x_start = int((x_max - message_length) * horizontal)
+
+        return y_start, x_start
 
