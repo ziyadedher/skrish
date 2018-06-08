@@ -1,5 +1,6 @@
 """Manages all interface scenes.
 """
+import sys
 from typing import Iterable, Callable, Dict, List
 
 
@@ -69,3 +70,9 @@ class SceneManager:
         SceneManager.__history.pop()
         SceneManager.__history[-1].display()
         return True
+
+    @staticmethod
+    def quit() -> None:
+        """Quit the scene manager.
+        """
+        sys.exit(0)

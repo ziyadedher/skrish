@@ -55,7 +55,7 @@ class MainMenuScene(Scene):
             ("CONTROLS", lambda: call_scene("controls")),
             ("CREDITS", lambda: call_scene("credits")),
             ("QUIT", lambda: call_scene("quit"))
-        ], spacing=2, min_width=25, selected_style=curses.A_BOLD)
+        ], min_width=25, selected_style=curses.A_BOLD)
 
         _watch_keys(menu)
 
@@ -98,10 +98,17 @@ class QuitScene(Scene):
     def display(self) -> None:
         screen.clear()
 
-        center_y, center_x = screen.positionyx("HERE GO THE QUIT!", vertical=0.5, horizontal=0.5)
-        screen.display("HERE GO THE QUIT!", center_y, center_x, util.ColorPair.TITLE.pair)
+        text = "Are you sure you want to quit?"
+        screen.display(text, *screen.positionyx(text, vertical=0.4, horizontal=0.5),
+                       util.ColorPair.WARNING.pair)
 
-        _watch_keys([])
+        assert can_go_back()
+        menu = _generate_menu([
+            ("NO", go_back),
+            ("YES", SceneManager.quit),
+        ], min_width=10, selected_style=curses.A_BOLD)
+
+        _watch_keys(menu)
 
 
 def _generate_menu(options: List[Tuple[str, Callable[[], Any]]], spacing: int = 2, min_width: int = 0,
