@@ -11,6 +11,9 @@ from skrish.game.game import Game
 class Interface:
     """Manages the command-line interface on a high-level.
     """
+    __screen: Screen
+    scener: Scener
+    game: Game
 
     def __init__(self, game: Game) -> None:
         """Initialize the command-line interface.
