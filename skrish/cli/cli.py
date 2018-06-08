@@ -18,6 +18,7 @@ class Interface:
             """Initialize the command-line interface.
             """
             self.screen = None
+            self.scene_manager = None
             self.game = game
 
         def start(self) -> None:
@@ -30,7 +31,7 @@ class Interface:
         def call_scene(identifier: str) -> None:
             """Call the scene with the given <identifier>.
             """
-            from skrish.cli.scenes import call_scene
+            from skrish.cli.scene_manager import call_scene
             call_scene(identifier)
 
         def error(self, message: str) -> None:

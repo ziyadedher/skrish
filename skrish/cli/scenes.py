@@ -1,15 +1,12 @@
-"""Manages certain pre-made scenes for the interface.
+"""Contains pre-made scenes for the interface.
 """
 import curses
-from typing import Tuple, List, Callable, Dict, Iterable
+from typing import Tuple, List
 
 from skrish.cli import util
+from skrish.cli.scene_manager import Scene, register_scene, call_scene
 from skrish.cli.cli import Interface
 
-
-interface = Interface.instance
-screen = interface.screen
-game = Interface.instance.game
 
 TITLE = """
     ▄████████    ▄█   ▄█▄    ▄████████  ▄█     ▄████████    ▄█    █▄    
@@ -23,52 +20,13 @@ TITLE = """
                ▀           ███    ███                                  
 """
 
-
-class NoSuchSceneException(Exception):
-    pass
-
-
-class Scene:
-    """Abstract scene class.
-    """
-    name: str
-
-    def display(self) -> None:
-        """Construct and display the scene.
-        """
-        raise NotImplementedError
+interface = Interface.instance
+screen = interface.screen
+game = interface.game
 
 
-__scenes_list: Dict[str, Callable[[], Scene]] = {}
-
-
-def call_scene(identifier: str) -> None:
-    """Call the scene with the given identifier.
-
-    Raises a `NoSuchSceneException` if there does not exist a scene with the given identifier.
-    """
-    if identifier not in __scenes_list:
-        raise NoSuchSceneException("This scene does not exist.")
-    __scenes_list[identifier]().display()
-
-
-def get_scene_identifiers() -> Iterable[str]:
-    """Get the identifiers of all registered scenes.
-    """
-    return __scenes_list.keys()
-
-
-def __register_scene(identifier: str) -> Callable[[Callable[[], Scene]], Callable[[], Scene]]:
-    def decorator(cls: Callable[[], Scene]) -> Callable[[], Scene]:
-        __scenes_list[identifier] = cls
-        return cls
-    return decorator
-
-
-@__register_scene("intro")
+@register_scene("intro")
 class IntroScene(Scene):
-    """Introduction scene.
-    """
     def display(self) -> None:
         screen.clear()
 
@@ -78,10 +36,8 @@ class IntroScene(Scene):
                               util.ColorPair.TITLE.pair, skippable=True)
 
 
-@__register_scene("main_menu")
+@register_scene("main_menu")
 class MainMenuScene(Scene):
-    """Main menu scene.
-    """
     def display(self) -> None:
         screen.clear()
 
@@ -89,10 +45,61 @@ class MainMenuScene(Scene):
         screen.display(TITLE, center_y - 10, center_x, util.ColorPair.TITLE.pair)
 
         _generate_menu([("START", lambda: None),
-                         ("OPTIONS", lambda: None),
-                         ("CREDITS", lambda: None),
-                         ("QUIT", lambda: None)],
-                        spacing=2, min_width=25, selected_style=curses.A_BOLD)
+                         ("OPTIONS", lambda: OptionsScene().display()),
+                         ("CONTROLS", lambda: ControlsScene().display()),
+                         ("CREDITS", lambda: CreditsScene().display()),
+                         ("QUIT", lambda: QuitScene().display())],
+                       spacing=2, min_width=25, selected_style=curses.A_BOLD)
+
+
+@register_scene("options")
+class OptionsScene(Scene):
+    def display(self) -> None:
+        screen.clear()
+
+        center_y, center_x = screen.positionyx("HERE GO THE OPTIONS!", vertical=0.5, horizontal=0.5)
+        screen.display("HERE GO THE OPTIONS!", center_y, center_x, util.ColorPair.TITLE.pair)
+
+        while screen.getch() != 27:
+            pass
+        return
+
+@register_scene("controls")
+class ControlsScene(Scene):
+    def display(self) -> None:
+        screen.clear()
+
+        center_y, center_x = screen.positionyx("HERE GO THE CONTROLS!", vertical=0.5, horizontal=0.5)
+        screen.display("HERE GO THE CONTROLS!", center_y, center_x, util.ColorPair.TITLE.pair)
+
+        while screen.getch() != 27:
+            pass
+        return
+
+@register_scene("credits")
+class CreditsScene(Scene):
+    def display(self) -> None:
+        screen.clear()
+
+        center_y, center_x = screen.positionyx("HERE GO THE CREDITS!", vertical=0.5, horizontal=0.5)
+        screen.display("HERE GO THE CREDITS!", center_y, center_x, util.ColorPair.TITLE.pair)
+
+        while screen.getch() != 27:
+            pass
+        return
+
+
+@register_scene("quit")
+class QuitScene(Scene):
+    def display(self) -> None:
+        screen.clear()
+
+        center_y, center_x = screen.positionyx("HERE GO THE QUIT!", vertical=0.5, horizontal=0.5)
+        screen.display("HERE GO THE QUIT!", center_y, center_x, util.ColorPair.TITLE.pair)
+
+        while screen.getch() != 27:
+            pass
+        return
 
 
 def _generate_menu(options: List[Tuple[str, callable]],
@@ -129,7 +136,10 @@ def _generate_menu(options: List[Tuple[str, callable]],
             screen.display(message, center_y + i * spacing, center_x,
                                   util.ColorPair.SELECTED.pair | selected_style if selection == i else curses.A_NORMAL)
 
+    screen.nodelay(False)
     options[selection][1]()  # Call the option's action
 
-    screen.nodelay(False)
-
+def noop():
+    """No operation. Used to prevent linter shouting at me.
+    """
+    pass
