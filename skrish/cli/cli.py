@@ -53,7 +53,7 @@ class Interface:
                                 util.ColorPair.STANDARD.pair)
 
             self.screen.refresh()
-            self.screen.getkey()
+            self.screen.getch()
 
         def exit(self) -> None:
             """Exit the interface cleanly with no error.

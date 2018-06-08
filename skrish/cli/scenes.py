@@ -1,7 +1,7 @@
 """Contains pre-made scenes for the interface.
 """
 import curses
-from typing import Tuple, List
+from typing import Tuple, List, Callable, Any
 
 from skrish.cli import util
 from skrish.cli.scene_manager import Scene, SceneManager
@@ -26,10 +26,8 @@ game = interface.game
 
 register_scene = SceneManager.register_scene
 call_scene = SceneManager.call_scene
+can_go_back = SceneManager.can_go_back
 go_back = SceneManager.go_back
-
-
-BACK_KEY = curses.KEY_BACKSPACE
 
 
 @register_scene("intro")
@@ -51,12 +49,15 @@ class MainMenuScene(Scene):
         center_y, center_x = screen.positionyx(TITLE, vertical=0.5, horizontal=0.5)
         screen.display(TITLE, center_y - 10, center_x, util.ColorPair.TITLE.pair)
 
-        _generate_menu([("START", lambda: None),
-                         ("OPTIONS", lambda: call_scene("options")),
-                         ("CONTROLS", lambda: call_scene("controls")),
-                         ("CREDITS", lambda: call_scene("credits")),
-                         ("QUIT", lambda: call_scene("quit"))],
-                       spacing=2, min_width=25, selected_style=curses.A_BOLD)
+        menu = _generate_menu([
+            ("START", lambda: None),
+            ("OPTIONS", lambda: call_scene("options")),
+            ("CONTROLS", lambda: call_scene("controls")),
+            ("CREDITS", lambda: call_scene("credits")),
+            ("QUIT", lambda: call_scene("quit"))
+        ], spacing=2, min_width=25, selected_style=curses.A_BOLD)
+
+        _watch_keys(menu)
 
 
 @register_scene("options")
@@ -67,11 +68,7 @@ class OptionsScene(Scene):
         center_y, center_x = screen.positionyx("HERE GO THE OPTIONS!", vertical=0.5, horizontal=0.5)
         screen.display("HERE GO THE OPTIONS!", center_y, center_x, util.ColorPair.TITLE.pair)
 
-        key = -1
-        while key != BACK_KEY:
-            pass
-            key = screen.getch()
-        go_back()
+        _watch_keys([])
 
 
 @register_scene("controls")
@@ -82,11 +79,7 @@ class ControlsScene(Scene):
         center_y, center_x = screen.positionyx("HERE GO THE CONTROLS!", vertical=0.5, horizontal=0.5)
         screen.display("HERE GO THE CONTROLS!", center_y, center_x, util.ColorPair.TITLE.pair)
 
-        key = -1
-        while key != BACK_KEY:
-            pass
-            key = screen.getch()
-        go_back()
+        _watch_keys([])
 
 
 @register_scene("credits")
@@ -97,11 +90,7 @@ class CreditsScene(Scene):
         center_y, center_x = screen.positionyx("HERE GO THE CREDITS!", vertical=0.5, horizontal=0.5)
         screen.display("HERE GO THE CREDITS!", center_y, center_x, util.ColorPair.TITLE.pair)
 
-        key = -1
-        while key != BACK_KEY:
-            pass
-            key = screen.getch()
-        go_back()
+        _watch_keys([])
 
 
 @register_scene("quit")
@@ -112,46 +101,79 @@ class QuitScene(Scene):
         center_y, center_x = screen.positionyx("HERE GO THE QUIT!", vertical=0.5, horizontal=0.5)
         screen.display("HERE GO THE QUIT!", center_y, center_x, util.ColorPair.TITLE.pair)
 
-        key = -1
-        while key != BACK_KEY:
-            pass
-            key = screen.getch()
-        go_back()
+        _watch_keys([])
 
 
-def _generate_menu(options: List[Tuple[str, callable]],
-                    spacing: int = 2, min_width: int = 0, selected_style=curses.A_STANDOUT) -> None:
+def _generate_menu(options: List[Tuple[str, Callable[[], Any]]], spacing: int = 2, min_width: int = 0,
+                   selected_style=curses.A_STANDOUT) -> List[Tuple[str, int, str, Callable[[], Any]]]:
     """Generate a menu with the given options.
     """
     screen.nodelay(True)
 
-    selection = -1
     num_selections = len(options)
     width = max(min_width, max(len(option[0]) for option in options))
 
+    class Menu:
+        actions: List[Callable[[], None]]
+        selection: int
+
+        def __init__(self, actions: List[Callable[[], None]]) -> None:
+            self.actions = actions
+            self.selection = 0
+
+        def up(self) -> None:
+            self.selection -= 1
+            self.selection %= num_selections
+            self.update()
+
+        def down(self) -> None:
+            self.selection += 1
+            self.selection %= num_selections
+            self.update()
+
+        def select(self) -> None:
+            self.actions[self.selection]()
+
+        def update(self) -> None:
+            for i, option in enumerate(options):
+                message = option[0]
+                message = "[ " + message.center(width) + " ]"
+                center_y, center_x = screen.positionyx(message, vertical=0.5, horizontal=0.5)
+                screen.display(message, center_y + i * spacing, center_x,
+                               util.ColorPair.SELECTED.pair | selected_style if self.selection == i else curses.A_NORMAL)
+
+    menu = Menu([option[1] for option in options])
+    menu.update()
+    return [
+        ("up", curses.KEY_UP, "select above", menu.up),
+        ("down", curses.KEY_DOWN, "select below", menu.down),
+        ("enter", 10, "select", menu.select)
+    ]
+
+
+def _watch_keys(options: List[Tuple[str, int, str, Callable[[], Any]]], joiner: str = "    ",
+                show_keys: bool = True, callback: Callable[[int], Any] = lambda i: None) -> None:
+    """Watch the keys given by <options> which describes a list of tuples of the form
+    ("key name", keycode, "action name", action). These keys will be displayed at the bottom of the screen if
+    <show_keys> is True, and a <callback> will be called while polling the keys.
+    """
+    if can_go_back():
+        options.append(("backspace", curses.KEY_BACKSPACE, "back", go_back))
+
+    if show_keys:
+        text_array = []
+        for option in options:
+            text_array.append("[{}] {}".format(option[0], option[2]))
+
+        text = joiner.join(text_array)
+        screen.display(text, *screen.positionyx(text, vertical=0.95, horizontal=0.5))
+
+    screen.nodelay(True)
     while True:
         key = screen.getch()
-        if selection == -1:
-            selection = 0
-            key = 1
+        callback(key)
 
-        if key == 10:  # chr(10) == "\n"
-            break
-        if key == curses.KEY_UP:
-            selection -= 1
-            selection %= num_selections
-        if key == curses.KEY_DOWN:
-            selection += 1
-            selection %= num_selections
-        if key <= 0:
-            continue
-
-        for i, option in enumerate(options):
-            message = option[0]
-            message = "[ " + message.center(width) + " ]"
-            center_y, center_x = screen.positionyx(message, vertical=0.5, horizontal=0.5)
-            screen.display(message, center_y + i * spacing, center_x,
-                                  util.ColorPair.SELECTED.pair | selected_style if selection == i else curses.A_NORMAL)
-
-    screen.nodelay(False)
-    options[selection][1]()  # Call the option's action
+        for option in options:
+            if key == option[1]:
+                screen.nodelay(False)
+                option[3]()

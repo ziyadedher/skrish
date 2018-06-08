@@ -55,10 +55,16 @@ class SceneManager:
         return SceneManager.__scenes.keys()
 
     @staticmethod
+    def can_go_back() -> bool:
+        """Returns whether or not there is scene history.
+        """
+        return len(SceneManager.__history) > 1
+
+    @staticmethod
     def go_back() -> bool:
         """Go back in scene history.
         """
-        if not SceneManager.__history:
+        if len(SceneManager.__history) < 2:
             return False
         SceneManager.__history.pop()
         SceneManager.__history[-1].display()
