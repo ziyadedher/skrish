@@ -52,7 +52,6 @@ class MainMenuScene(Scene):
         menu = _generate_menu([
             ("START", lambda: None),
             ("OPTIONS", lambda: call_scene("options")),
-            ("CONTROLS", lambda: call_scene("controls")),
             ("CREDITS", lambda: call_scene("credits")),
             ("QUIT", lambda: call_scene("quit"))
         ], min_width=25, selected_style=curses.A_BOLD)
@@ -65,31 +64,16 @@ class OptionsScene(Scene):
     def display(self) -> None:
         screen.clear()
 
-        center_y, center_x = screen.positionyx("HERE GO THE OPTIONS!", vertical=0.5, horizontal=0.5)
-        screen.display("HERE GO THE OPTIONS!", center_y, center_x, util.ColorPair.TITLE.pair)
+        _title("OPTIONS")
 
         _watch_keys([])
-
-
-@register_scene("controls")
-class ControlsScene(Scene):
-    def display(self) -> None:
-        screen.clear()
-
-        center_y, center_x = screen.positionyx("HERE GO THE CONTROLS!", vertical=0.5, horizontal=0.5)
-        screen.display("HERE GO THE CONTROLS!", center_y, center_x, util.ColorPair.TITLE.pair)
-
-        _watch_keys([])
-
 
 @register_scene("credits")
 class CreditsScene(Scene):
     def display(self) -> None:
         screen.clear()
 
-        text = "Credits"
-        screen.display(text, *screen.positionyx(text, vertical=0.4, horizontal=0.5),
-                       util.ColorPair.SUCCESS.pair)
+        _title("CREDITS")
 
         text = "Ziyad Edher"
         screen.display(text, *screen.positionyx(text, vertical=0.5, horizontal=0.5),
@@ -189,3 +173,11 @@ def _watch_keys(options: List[Tuple[str, int, str, Callable[[], Any]]], joiner: 
             if key == option[1]:
                 screen.nodelay(False)
                 option[3]()
+
+
+def _title(text: str) -> None:
+    """Display a title in the screen with the given <text>.
+    """
+    text = "==== {} ====".format(text)
+    screen.display(text, *screen.positionyx(text, vertical=0.3, horizontal=0.5),
+                   util.ColorPair.SUCCESS.pair)

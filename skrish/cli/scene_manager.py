@@ -19,6 +19,7 @@ class Scene:
         raise NotImplementedError
 
 
+# FIXME: all past scenes are always stored in memory through deeper and deeper function calls
 class SceneManager:
     """Scene manager that organizes, stores, and indexes all scenes.
     """
