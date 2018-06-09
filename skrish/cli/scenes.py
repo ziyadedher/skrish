@@ -202,8 +202,6 @@ def _watch_keys(options: List[Tuple[str, List[int], str, Callable[[], Any]]] = N
 
         for option in options:
             if key in option[1]:
-                curses.endwin()
-                print(key)
                 screen.nodelay(False)
                 option[3]()
 
