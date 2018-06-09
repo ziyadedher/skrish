@@ -19,10 +19,12 @@ class Screen:
         self.getkey = self.screen.getkey
         self.getch = self.screen.getch
         self.border = self.screen.border
+        self.box = self.screen.box
         self.keypad = self.screen.keypad
         self.getyx = self.screen.getyx
         self.getmaxyx = self.screen.getmaxyx
         self.nodelay = self.screen.nodelay
+        self.derwin = self.screen.derwin
 
     def display(self, message: str, y: Optional[int] = None, x: Optional[int] = None, *args,
                 refresh: bool = True) -> None:
