@@ -114,18 +114,26 @@ class Screen:
         if skippable:
             self.screen.nodelay(False)
 
-    def positionyx(self, message: str, vertical=None, horizontal=None) -> Tuple[int, int]:
-        """Return the y and x parameters required to position the given <message> at the given percentages of the screen.
+    def positionyx(self, message: str, vertical=None, horizontal=None, center: bool = True) -> Tuple[int, int]:
+        """Return the y and x parameters required to position the given <message> at the given percentages of
+        the screen.
         """
         message_array = message.strip("\n").split("\n")
         y_max, x_max = self.getmaxyx()
         y, x = self.getyx()
 
         y_start, x_start = y, x
-        if vertical:
-            y_start = int((y_max - len(message_array)) * vertical)
-        if horizontal:
-            x_start = int((x_max - max(len(line) for line in message_array)) * horizontal)
+        if vertical is not None:
+            if center:
+                y_start = int((y_max - len(message_array)) * vertical)
+            else:
+                y_start = int(y_max * vertical)
+        if horizontal is not None:
+            if center:
+                longest_line = max(len(line) for line in message_array)
+                x_start = int((x_max - longest_line) * horizontal)
+            else:
+                x_start = int(x_max * horizontal)
 
         return y_start, x_start
 

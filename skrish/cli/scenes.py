@@ -111,20 +111,34 @@ class CharacterCreationScene(Scene):
     def display(self) -> None:
         screen.clear()
 
+        # Screen grid setup
         y_max, x_max = screen.getmaxyx()
         main_params = (round(y_max * 0.75), round(x_max * 0.75), 0, 0)
         log_params = (y_max, round(x_max * 0.25), 0, round(x_max * 0.75))
-        info_params = (round(y_max * 0.25), round(x_max * 0.75), round(y_max * 0.75), 0)
+        info_params = (round(y_max * 0.25), round(x_max * 0.65), round(y_max * 0.75), round(x_max * 0.1))
+        controls_params = (round(y_max * 0.25), round(x_max * 0.1), round(y_max * 0.75), 0)
 
+        main = Screen(screen.derwin(*main_params))
         log = Screen(screen.derwin(*log_params))
         info = Screen(screen.derwin(*info_params))
-        main = Screen(screen.derwin(*main_params))
+        controls = Screen(screen.derwin(*controls_params))
 
         main.box()
         log.box()
         info.box()
+        controls.box()
 
-        _watch_keys()
+        _title("Character Creation", border=" ", vertical=0, horizontal=0.01, center=False)
+        _title("Log", border=" ", vertical=0, horizontal=0.76, center=False)
+        _title("Information", border=" ", vertical=0.75, horizontal=0.11, center=False)
+        _title("Controls", border=" ", vertical=0.75, horizontal=0.01, center=False)
+
+        _watch_keys([
+            ("up", [curses.KEY_UP], "select above", lambda: None),
+            ("down", [curses.KEY_DOWN], "select below", lambda: None),
+            ("left", [curses.KEY_LEFT], "decrement", lambda: None),
+            ("right", [curses.KEY_RIGHT], "increment", lambda: None)
+        ], joiner="\n", vertical=0.775, horizontal=(3 / x_max), center=False)
 
 
 def _generate_menu(options: List[Tuple[str, Callable[[], Any]]], spacing: int = 2, min_width: int = 0,
@@ -176,10 +190,14 @@ def _generate_menu(options: List[Tuple[str, Callable[[], Any]]], spacing: int = 
 
 
 def _watch_keys(options: List[Tuple[str, List[int], str, Callable[[], Any]]] = None, joiner: str = "    ",
-                show_keys: bool = True, callback: Callable[[int], Any] = lambda i: None) -> None:
+                show_keys: bool = True, callback: Callable[[int], Any] = lambda i: None,
+                vertical: float = 0.95, horizontal: float = 0.5, center: bool = True) -> None:
     """Watch the keys given by <options> which describes a list of tuples of the form
     ("key name", keycode, "action name", action). These keys will be displayed at the bottom of the screen if
     <show_keys> is True, and a <callback> will be called while polling the keys.
+
+    Text is positioned at <vertical> and <horizontal> percentages of the screen, unless <v_start> is set, then
+    the keys will be sequential starting at the given position.
     """
     if options is None:
         options = []
@@ -193,7 +211,7 @@ def _watch_keys(options: List[Tuple[str, List[int], str, Callable[[], Any]]] = N
             text_array.append("[{}] {}".format(option[0], option[2]))
 
         text = joiner.join(text_array)
-        screen.display(text, *screen.positionyx(text, vertical=0.95, horizontal=0.5))
+        screen.display(text, *screen.positionyx(text, vertical=vertical, horizontal=horizontal, center=center))
 
     screen.nodelay(True)
     while True:
@@ -206,9 +224,11 @@ def _watch_keys(options: List[Tuple[str, List[int], str, Callable[[], Any]]] = N
                 option[3]()
 
 
-def _title(text: str) -> None:
-    """Display a title in the screen with the given <text>.
+def _title(text: str, style = curses.A_BOLD, border: str = "====",
+           vertical: float = 0.3, horizontal: float = 0.5, center: bool = True) -> None:
+    """Display a title in the screen with the given <text>,
+    positioned at <vertical> and <horizontal> center percentages of the screen, unless <h_start> is set, then
+    the title will have left edge at the given horizontal position.
     """
-    text = "==== {} ====".format(text)
-    screen.display(text, *screen.positionyx(text, vertical=0.3, horizontal=0.5),
-                   util.ColorPair.SUCCESS.pair)
+    text = "{0}{1}{0}".format(border, text)
+    screen.display(text, *screen.positionyx(text, vertical=vertical, horizontal=horizontal, center=center), style)
