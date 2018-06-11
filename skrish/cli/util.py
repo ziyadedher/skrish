@@ -1,6 +1,6 @@
 """Provides useful CLI utilities for more efficient displaying of information.
 """
-from typing import Any
+from typing import Any, Tuple, List
 from enum import Enum
 
 import curses
@@ -31,3 +31,22 @@ class ColorPair(Enum):
         """Return the color pair represented by the item.
         """
         return curses.color_pair(self.value)
+
+
+class Anchor(Enum):
+    TOP_LEFT = (0, 0)
+    TOP_CENTER = (0, 1)
+    TOP_RIGHT = (0, 2)
+    CENTER_LEFT = (1, 0)
+    CENTER_CENTER = (1, 1)
+    CENTER_RIGHT = (1, 2)
+    BOTTOM_LEFT = (2, 0)
+    BOTTOM_CENTER = (2, 1)
+    BOTTOM_RIGHT = (2, 2)
+
+    def offset(self, message_list: List[str]) -> Tuple[int, int]:
+        """Return the offset required to position the given <message> in the correct positioning for the anchor.
+        """
+        y_offset = -int(len(message_list) * self.value[0] / 2)
+        x_offset = -int(max(len(line) for line in message_list) * self.value[1] / 2)
+        return y_offset, x_offset

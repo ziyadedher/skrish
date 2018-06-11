@@ -38,9 +38,7 @@ class IntroScene(Scene):
     def display(self) -> None:
         screen.clear()
 
-        center_y, center_x = screen.positionyx(TITLE, vertical=0.5, horizontal=0.5)
-        start = -max(len(line) for line in TITLE.split("\n"))
-        screen.scroll_message(TITLE, 2, center_y - 10, start, center_y - 10, center_x,
+        screen.scroll_message(TITLE, 2, 0.3, 0.2, 0.3, 0.5,
                               util.ColorPair.TITLE.pair, skippable=True)
 
 
@@ -49,8 +47,7 @@ class MainMenuScene(Scene):
     def display(self) -> None:
         screen.clear()
 
-        center_y, center_x = screen.positionyx(TITLE, vertical=0.5, horizontal=0.5)
-        screen.display(TITLE, center_y - 10, center_x, util.ColorPair.TITLE.pair)
+        screen.put(TITLE, 0.3, 0.5, util.ColorPair.TITLE.pair)
 
         menu = _generate_menu([
             ("START", lambda: call_scene("character_creation")),
@@ -59,7 +56,7 @@ class MainMenuScene(Scene):
             ("QUIT", lambda: call_scene("quit"))
         ], min_width=25, selected_style=curses.A_BOLD)
 
-        _watch_keys(menu)
+        _watch_keys(options=menu)
 
 
 @register_scene("options")
@@ -67,7 +64,7 @@ class OptionsScene(Scene):
     def display(self) -> None:
         screen.clear()
 
-        _title("OPTIONS")
+        # _title("OPTIONS")
 
         _watch_keys()
 
@@ -77,11 +74,10 @@ class CreditsScene(Scene):
     def display(self) -> None:
         screen.clear()
 
-        _title("CREDITS")
+        # _title("CREDITS")
 
         text = "Ziyad Edher"
-        screen.display(text, *screen.positionyx(text, vertical=0.5, horizontal=0.5),
-                       util.ColorPair.STANDARD.pair)
+        screen.put(text, 0.5, 0.5, util.ColorPair.STANDARD.pair)
 
         _watch_keys()
 
@@ -91,11 +87,11 @@ class QuitScene(Scene):
     def display(self) -> None:
         screen.clear()
 
-        _title("QUIT")
+        # _title("QUIT")
 
         text = "Are you sure you want to quit?"
-        screen.display(text, *screen.positionyx(text, vertical=0.4, horizontal=0.5),
-                       util.ColorPair.WARNING.pair)
+        screen.put(text, 0.4, 0.5,
+                   util.ColorPair.WARNING.pair)
 
         assert can_go_back()
         menu = _generate_menu([
@@ -128,20 +124,17 @@ class CharacterCreationScene(Scene):
         info.box()
         controls.box()
 
-        _title("Character Creation", border=" ", vertical=0, horizontal=0.01, center=False)
-        _title("Log", border=" ", vertical=0, horizontal=0.76, center=False)
-        _title("Information", border=" ", vertical=0.75, horizontal=0.11, center=False)
-        _title("Controls", border=" ", vertical=0.75, horizontal=0.01, center=False)
-
         _watch_keys([
             ("up", [curses.KEY_UP], "select above", lambda: None),
             ("down", [curses.KEY_DOWN], "select below", lambda: None),
             ("left", [curses.KEY_LEFT], "decrement", lambda: None),
             ("right", [curses.KEY_RIGHT], "increment", lambda: None)
-        ], joiner="\n", vertical=0.775, horizontal=(3 / x_max), center=False)
+        ], vertical=0.775, horizontal=(3 / x_max), joiner="\n")
 
 
-def _generate_menu(options: List[Tuple[str, Callable[[], Any]]], spacing: int = 2, min_width: int = 0,
+def _generate_menu(options: List[Tuple[str, Callable[[], Any]]], horizontal: float = 0.5, vertical: float = 0.5,
+                   anchor: util.Anchor = util.Anchor.CENTER_CENTER, spacing: int = 2,
+                   min_width: int = 10, edges: Tuple[str, str] = ("[", "]"),
                    selected_style=curses.A_STANDOUT) -> List[Tuple[str, List[int], str, Callable[[], Any]]]:
     """Generate a menu with the given options.
     """
@@ -174,11 +167,12 @@ def _generate_menu(options: List[Tuple[str, Callable[[], Any]]], spacing: int = 
         def update(self) -> None:
             for i, option in enumerate(options):
                 message = option[0]
-                message = "[ " + message.center(width) + " ]"
-                center_y, center_x = screen.positionyx(message, vertical=0.5, horizontal=0.5)
-                screen.display(message, center_y + i * spacing, center_x,
-                               util.ColorPair.SELECTED.pair |
-                               selected_style if self.selection == i else curses.A_NORMAL)
+                message = edges[0] + message.center(width) + edges[1]
+
+                screen.put(message, vertical, horizontal,
+                           util.ColorPair.SELECTED.pair |
+                           selected_style if self.selection == i else curses.A_NORMAL,
+                           anchor=anchor, offset=(i * spacing, 0))
 
     menu = Menu([option[1] for option in options])
     menu.update()
@@ -189,15 +183,13 @@ def _generate_menu(options: List[Tuple[str, Callable[[], Any]]], spacing: int = 
     ]
 
 
-def _watch_keys(options: List[Tuple[str, List[int], str, Callable[[], Any]]] = None, joiner: str = "    ",
+def _watch_keys(options: List[Tuple[str, List[int], str, Callable[[], Any]]] = None,
+                vertical: float = 0.95, horizontal: float = 0.5, joiner: str = "    ",
                 show_keys: bool = True, callback: Callable[[int], Any] = lambda i: None,
-                vertical: float = 0.95, horizontal: float = 0.5, center: bool = True) -> None:
+                anchor: util.Anchor = util.Anchor.CENTER_CENTER) -> None:
     """Watch the keys given by <options> which describes a list of tuples of the form
     ("key name", keycode, "action name", action). These keys will be displayed at the bottom of the screen if
     <show_keys> is True, and a <callback> will be called while polling the keys.
-
-    Text is positioned at <vertical> and <horizontal> percentages of the screen, unless <v_start> is set, then
-    the keys will be sequential starting at the given position.
     """
     if options is None:
         options = []
@@ -211,7 +203,7 @@ def _watch_keys(options: List[Tuple[str, List[int], str, Callable[[], Any]]] = N
             text_array.append("[{}] {}".format(option[0], option[2]))
 
         text = joiner.join(text_array)
-        screen.display(text, *screen.positionyx(text, vertical=vertical, horizontal=horizontal, center=center))
+        screen.put(text, vertical, horizontal, anchor=anchor)
 
     screen.nodelay(True)
     while True:
@@ -224,11 +216,9 @@ def _watch_keys(options: List[Tuple[str, List[int], str, Callable[[], Any]]] = N
                 option[3]()
 
 
-def _title(text: str, style = curses.A_BOLD, border: str = "====",
-           vertical: float = 0.3, horizontal: float = 0.5, center: bool = True) -> None:
-    """Display a title in the screen with the given <text>,
-    positioned at <vertical> and <horizontal> center percentages of the screen, unless <h_start> is set, then
-    the title will have left edge at the given horizontal position.
+def _title(text: str, vertical: float = 0.3, horizontal: float = 0.5, *args, border: str = "====",
+           anchor: util.Anchor = util.Anchor.CENTER_CENTER) -> None:
+    """Display a title in the screen with the given <text>.
     """
-    text = "{0}{1}{0}".format(border, text)
-    screen.display(text, *screen.positionyx(text, vertical=vertical, horizontal=horizontal, center=center), style)
+    text = "{0} {1} {0}".format(border, text)
+    screen.put(text, vertical, horizontal, args, anchor=anchor)
