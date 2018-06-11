@@ -37,9 +37,7 @@ go_back = SceneManager.go_back
 class IntroScene(Scene):
     def display(self) -> None:
         screen.clear()
-
-        screen.scroll_message(TITLE, 2, 0.3, 0.2, 0.3, 0.5,
-                              util.ColorPair.TITLE.pair, skippable=True)
+        screen.scroll_message(TITLE, 2, 0.3, -0.2, 0.3, 0.5, util.ColorPair.TITLE.pair, skippable=True)
 
 
 @register_scene("main_menu")

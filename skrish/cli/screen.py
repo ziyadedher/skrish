@@ -40,7 +40,7 @@ class Screen:
 
         The anchor is the position of the text to place at the given percentages.
 
-        NOTE: Try not to use the offset parameter unless necessary
+        NOTE: Try not to use the offset parameter unless necessary.
         """
         message_list = message.strip("\n").split("\n")
         if vertical is None:
@@ -48,33 +48,37 @@ class Screen:
         if horizontal is None:
             horizontal = self._absolute_to_scale(*self.getyx)[1]
 
+        y_max, x_max = self.getmaxyx()
         y, x = self._position_message(message_list, anchor, vertical, horizontal)
+
+        num_lines = len(message_list)
+        max_line = max(len(line) for line in message_list)
         counter = 0
 
-        # # If the message is out of bounds, then cut it off to prevent an error and choose padding
-        # left_free, right_free, top_free, bottom_free = True, True, True, True
-        # vertical, horizontal, new_message_list = cur_vertical, cur_horizontal, message_list
-        # if horizontal < 0:
-        #     new_message_list = [line[-round(x):] for line in new_message_list]
-        #     left_free = False
-        #     x = 0
-        # if x + max_line + 2 > x_max:
-        #     if x >= x_max - 1:
-        #         x = x_max - 1
-        #     new_message_list = [line[:x_max - round(x) - 1] for line in new_message_list]
-        #     right_free = False
-        # if y < 0:
-        #     new_message_list = new_message_list[-round(y):]
-        #     top_free = False
-        #     y = 0
-        # if y + lines + 2 > y_max:
-        #     if y >= y_max - 1:
-        #         y = y_max - 1
-        #     new_message_list = new_message_list[:y_max - round(y) - 1]
-        #     bottom_free = False
+        # If the message is out of bounds, then cut it off to prevent an error
+        # FIXME: manual offset is not accounted for
+        # FIXME: moving out of bottom-right corner crashes
+        new_message_list = message_list
+        if y < 0:
+            new_message_list = message_list[-y:]
+            y = 0
+        if y + num_lines > y_max:
+            if y > y_max:
+                y = y_max
+            new_message_list = message_list[:y_max - y]
 
-        # TODO: implement and allow placing outside the screen (remove parts), transfer this functionality over from scroll message
-        for line in message_list:
+        if x < 0:
+            new_message_list = [line[-x:] for line in new_message_list]
+            x = 0
+        if x + max_line > x_max:
+            if x > x_max:
+                x = x_max
+            new_message_list = [line[:x_max - x] for line in new_message_list]
+
+        for line in new_message_list:
+            if not line:
+                continue
+
             cursor_y, cursor_x = self.screen.getyx()
 
             self.screen.addstr((y if y is not None else cursor_y) + counter + offset[0],
@@ -85,8 +89,6 @@ class Screen:
         if refresh:
             self.screen.refresh()
 
-    # FIXME: crashes when diagonal from out-of-screen to out-of-screen
-    # TODO: implement in new system
     def scroll_message(self, message: str, seconds: float,
                        vertical_start: float, horizontal_start: float, vertical_end: float, horizontal_end: float,
                        *args, anchor: util.Anchor = util.Anchor.CENTER_CENTER, skippable: bool = False) -> None:
@@ -122,7 +124,7 @@ class Screen:
             anti_clear_list = [(h_padding + line + h_padding) for line in message_list]
             anti_clear = (v_padding + "\n") + ("\n".join(anti_clear_list)) + ("\n" + v_padding)
 
-            self.put(anti_clear, cur_vertical, cur_horizontal, *args)
+            self.put(anti_clear, cur_vertical, cur_horizontal, *args, anchor=anchor)
 
         if skippable:
             self.screen.nodelay(False)
