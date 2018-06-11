@@ -15,8 +15,6 @@ def main():
         interface = interface.instance
         interface.start()
         interface.call_scene("intro")
-        interface.call_scene("main_menu")
-        interface.error("Do you know the muffin man?")
 
 
 if __name__ == '__main__':

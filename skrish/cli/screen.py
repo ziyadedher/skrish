@@ -180,16 +180,17 @@ class Screen:
         if skippable:
             self.screen.nodelay(False)
 
-    def generate_menu(self, options: List[Tuple[str, Callable[[], Any]]],
+    def generate_menu(self, options: List[Tuple[str, Callable[[], Any], bool]],
                       vertical: float = 0.5, horizontal: float = 0.5,
                       anchor: util.Anchor = util.Anchor.CENTER_CENTER, spacing: int = 2,
                       min_width: int = 10, edges: Tuple[str, str] = ("[", "]"),
-                      selected_style=curses.A_STANDOUT) -> List[Tuple[str, List[int], str, Callable[[], Any]]]:
+                      selected_style=curses.A_STANDOUT) -> List[Tuple[str, List[int], str, Callable[[], Any], bool]]:
         """Generate a menu with the given <options> which is a list of tuples that represents the option name and
-        action to take upon choosing it. The menu is positioned at <vertical> and <horizontal> percentages of the screen
-        with respect to an <anchor>. The vertical <spacing> between menu items can be specified as well as the
-        <min_width> of the items, which are terminated by the left and right <edges>, a 2-tuple. A <selected_style> is
-        applied the currently selected item.
+        action to take upon choosing it, and an optional flag to to state whether or not to stop polling for this menu.
+        The menu is positioned at <vertical> and <horizontal> percentages of the screen with respect to an <anchor>.
+        The vertical <spacing> between menu items can be specified as well as the <min_width> of the items,
+        which are terminated by the left and right <edges>, a 2-tuple.
+        A <selected_style> is applied the currently selected item.
         """
         num_selections = len(options)
         width = max(min_width, max(len(option[0]) for option in options))
@@ -213,8 +214,12 @@ class Screen:
                 self.selection %= num_selections
                 self.update()
 
-            def select(self) -> None:
-                self.actions[self.selection]()
+            def select(self) -> Optional[Callable[[], Any]]:
+                call = self.actions[self.selection]
+                if options[self.selection][2]:
+                    return call
+
+                call()
 
             def update(self) -> None:
                 for i, option in enumerate(options):
@@ -229,21 +234,23 @@ class Screen:
         menu = Menu(self, [option[1] for option in options])
         menu.update()
         return [
-            ("up", [curses.KEY_UP], "select above", menu.up),
-            ("down", [curses.KEY_DOWN], "select below", menu.down),
-            ("enter", [curses.KEY_ENTER, 10], "select", menu.select)
+            ("up", [curses.KEY_UP], "select above", menu.up, False),
+            ("down", [curses.KEY_DOWN], "select below", menu.down, False),
+            ("enter", [curses.KEY_ENTER, 10], "select", menu.select, False)
         ]
 
-    def watch_keys(self, options: List[Tuple[str, List[int], str, Callable[[], Any]]] = None,
-                   listener_screen: 'Screen' = None,
-                   vertical: float = 0.95, horizontal: float = 0.5, joiner: str = "    ",
-                   show_keys: bool = True, callback: Callable[[int], Any] = lambda i: None,
-                   anchor: util.Anchor = util.Anchor.CENTER_CENTER, offset: Tuple[int, int] = (0, 0)) -> None:
+    def watch_keys(self, options: List[Tuple[str, List[int], str, Callable[[], Any], bool]] = None,
+                   listener_screen: 'Screen' = None, vertical: float = 0.95, horizontal: float = 0.5,
+                   joiner: str = "    ", show_keys: bool = True,
+                   anchor: util.Anchor = util.Anchor.CENTER_CENTER, offset: Tuple[int, int] = (0, 0),
+                   callback: Callable[[int], Any] = lambda i: None) -> Callable[[], Any]:
         """Watch the keys given by <options> which describes a list of tuples of the form
-        ("key name", keycode, "action name", action) on the given <listener_screen> if specified, otherwise it will
-        listen on this screen. These keys will be displayed at <vertical> and <horizontal> percentages of the screen
-        with the given <anchor> and <offset> and joined by <joiner> if <show_keys> is set,
+        ("key name", keycode, "action name", action, is_scene_switch)) on the given <listener_screen> if specified,
+        otherwise it will listen on this screen. These keys will be displayed at <vertical> and <horizontal> percentages
+        of the screen with the given <anchor> and <offset> and joined by <joiner> if <show_keys> is set,
         includes a <callback> for each poll of the keys that passes through the key pressed.
+
+        Returns the final call from this watch keys to prevent further and further recursion.
         """
         if options is None:
             options = []
@@ -266,7 +273,13 @@ class Screen:
             for option in options:
                 if key in option[1]:
                     listener_screen.nodelay(False)
-                    option[3]()
+                    call = option[3]
+                    if option[4]:
+                        return call
+
+                    call = call()
+                    if call is not None:
+                        return call
 
     def _absolute_to_scale(self, y: int, x: int) -> Tuple[float, float]:
         """Convert from the absolute <y> and <x> relative to this screen to a scale percentage of the screen.

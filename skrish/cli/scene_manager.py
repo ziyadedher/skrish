@@ -1,25 +1,31 @@
 """Manages all interface scenes.
 """
 import sys
-from typing import Iterable, Callable, Dict, List
+from enum import Enum
+from typing import Iterable, Callable, Dict, List, Any, Tuple, Optional
 
 
 class NoSuchSceneException(Exception):
     pass
 
 
+class SceneControl(Enum):
+    REMOVE_HISTORY = -2
+    BACK = -1
+    STAY = 0
+    GOTO = 1
+
 class Scene:
     """Abstract scene class.
     """
     name: str
 
-    def display(self) -> None:
+    def display(self) -> Tuple[Optional['Scene'], int]:
         """Construct and display the scene.
         """
         raise NotImplementedError
 
 
-# FIXME: all past scenes are always stored in memory through deeper and deeper function calls
 class SceneManager:
     """Scene manager that organizes, stores, and indexes all scenes.
     """
@@ -41,14 +47,33 @@ class SceneManager:
 
         Raises a `NoSuchSceneException` if there does not exist a scene with the given identifier.
         """
+        scene = SceneManager.get_scene(identifier)()
+        control = SceneControl.REMOVE_HISTORY if no_back else SceneControl.GOTO
+
+        while scene is not None:
+            if control == SceneControl.REMOVE_HISTORY:
+                SceneManager.__history = []
+
+            past_scene = scene
+            scene, control = scene.display()
+
+            if control == SceneControl.BACK:
+                scene = SceneManager.__go_back()
+                control = SceneControl.GOTO
+            elif control == SceneControl.STAY:
+                scene = past_scene
+            elif control == SceneControl.GOTO:
+                SceneManager.__history.append(past_scene)
+
+    @staticmethod
+    def get_scene(identifier: str) -> Callable[[], Scene]:
+        """Return the scene with the given <identifier>.
+
+        Raises a `NoSuchSceneException` if there does not exist a scene with the given identifier.
+        """
         if identifier not in SceneManager.__scenes:
             raise NoSuchSceneException("This scene does not exist.")
-        if no_back:
-            SceneManager.__history = []
-
-        scene = SceneManager.__scenes[identifier]()
-        SceneManager.__history.append(scene)
-        scene.display()
+        return SceneManager.__scenes[identifier]
 
     @staticmethod
     def get_scene_identifiers() -> Iterable[str]:
@@ -60,20 +85,18 @@ class SceneManager:
     def can_go_back() -> bool:
         """Returns whether or not there is scene history.
         """
-        return len(SceneManager.__history) > 1
+        return len(SceneManager.__history) > 0
 
     @staticmethod
-    def go_back() -> bool:
+    def __go_back() -> Optional[Scene]:
         """Go back in scene history.
         """
         if len(SceneManager.__history) < 2:
-            return False
-        SceneManager.__history.pop()
-        SceneManager.__history[-1].display()
-        return True
+            return None
+        return SceneManager.__history.pop()
 
     @staticmethod
-    def quit() -> None:
+    def __quit() -> None:
         """Quit the scene manager.
         """
         sys.exit(0)
