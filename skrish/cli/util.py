@@ -44,9 +44,10 @@ class Anchor(Enum):
     BOTTOM_CENTER = (2, 1)
     BOTTOM_RIGHT = (2, 2)
 
-    def offset(self, message_list: List[str]) -> Tuple[int, int]:
-        """Return the offset required to position the given <message> in the correct positioning for the anchor.
+    def offset(self, lines: int, max_line: int) -> Tuple[int, int]:
+        """Return the offset required to position the given <lines> with a given <max_line> in the correct
+        positioning for the anchor.
         """
-        y_offset = -int(len(message_list) * self.value[0] / 2)
-        x_offset = -int(max(len(line) for line in message_list) * self.value[1] / 2)
+        y_offset = -int(lines * self.value[0] / 2)
+        x_offset = -int(max_line * self.value[1] / 2)
         return y_offset, x_offset

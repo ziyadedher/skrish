@@ -82,21 +82,21 @@ class CreditsScene(Scene):
 @register_scene("quit")
 class QuitScene(Scene):
     def display(self) -> None:
-        screen.clear()
+        quit_screen = screen.dialogue(0.5, 0.5, 0.5, 0.5)
 
-        screen.put("=== QUIT ===", 0.25, 0.5, curses.A_BOLD, anchor=util.Anchor.CENTER_CENTER)
+        quit_screen.put("=== QUIT ===", 0.25, 0.5, curses.A_BOLD, anchor=util.Anchor.CENTER_CENTER)
 
         text = "Are you sure you want to quit?"
-        screen.put(text, 0.4, 0.5,
-                   util.ColorPair.WARNING.pair)
+        quit_screen.put(text, 0.4, 0.5,
+                        util.ColorPair.WARNING.pair)
 
         assert can_go_back()
-        menu = screen.generate_menu([
+        menu = quit_screen.generate_menu([
             ("NO", go_back),
             ("YES", SceneManager.quit),
         ], min_width=10, selected_style=curses.A_BOLD)
 
-        screen.watch_keys(menu + _back_if_possible())
+        quit_screen.watch_keys(menu + _back_if_possible(), listener_screen=screen)
 
 
 @register_scene("character_creation")

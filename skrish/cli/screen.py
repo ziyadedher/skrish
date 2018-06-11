@@ -29,17 +29,44 @@ class Screen:
         self.nodelay = self.screen.nodelay
         self.derwin = self.screen.derwin
 
-    def grid_screen(self, dimensions: List[Tuple[float, float, float, float]]) -> List['Screen']:
-        """Generates a grid of sub-screens based off the given <dimensions>, and returns the list of created
+    def dialogue(self, vertical_size: float, horizontal_size: float, vertical_offset: float, horizontal_offset: float,
+                 anchor: util.Anchor = util.Anchor.CENTER_CENTER) -> 'Screen':
+        """Generates a dialogue box sub-screen based off the given <dimensions>, and returns the sub-screen.
+        """
+        y_max, x_max = self.getmaxyx()
+        y_size, x_size = y_max * vertical_size, x_max * horizontal_size
+        y_anchor_offset, x_anchor_offset = anchor.offset(y_size, x_size)
+        y_offset, x_offset = y_max * vertical_offset + y_anchor_offset, x_max * horizontal_offset + x_anchor_offset
+
+        # Counteract truncating off the edge, cannot round because it is inconsistent (even-odd).
+        if y_size + y_offset == y_max:
+            if int(y_size) < y_size:
+                y_size += 1
+        if x_size + x_offset == x_max:
+            if int(x_size) < x_size:
+                x_size += 1
+
+        screen = Screen(self.derwin(
+            int(y_size), int(x_size), int(y_offset), int(x_offset)
+        ))
+
+        screen.clear()
+        screen.box()
+        screen.refresh()
+
+        return screen
+
+    def grid_screen(self, dimensions_list: List[Tuple[float, float, float, float]]) -> List['Screen']:
+        """Generates a grid of sub-screens based off the given <dimensions_list>, and returns the list of created
         sub-screens.
         """
         y_max, x_max = self.getmaxyx()
         screens = []
-        for dimension in dimensions:
-            y_size, x_size = y_max * dimension[0], x_max * dimension[1]
-            y_offset, x_offset = y_max * dimension[2], x_max * dimension[3]
+        for dimensions in dimensions_list:
+            y_size, x_size = y_max * dimensions[0], x_max * dimensions[1]
+            y_offset, x_offset = y_max * dimensions[2], x_max * dimensions[3]
 
-            # To counteract truncating off the edge, cannot round because it is inconsistent (even-odd).
+            # Counteract truncating off the edge, cannot round because it is inconsistent (even-odd).
             if y_size + y_offset == y_max:
                 if int(y_size) < y_size:
                     y_size += 1
@@ -80,7 +107,7 @@ class Screen:
         max_line = max(len(line) for line in message_list)
         counter = 0
 
-        # If the message is out of bounds, then cut it off to prevent an error
+        # If the message is out of bounds, then cut it off to prevent an error considering the manual offset
         # FIXME: moving out of bottom-right corner crashes
         new_message_list = message_list
         if y + offset[0] < 0:
@@ -215,7 +242,8 @@ class Screen:
         """Watch the keys given by <options> which describes a list of tuples of the form
         ("key name", keycode, "action name", action) on the given <listener_screen> if specified, otherwise it will
         listen on this screen. These keys will be displayed at <vertical> and <horizontal> percentages of the screen
-        with the given <anchor> and <offset> if <show_keys> is set, includes a <callback> while polling the keys.
+        with the given <anchor> and <offset> and joined by <joiner> if <show_keys> is set,
+        includes a <callback> for each poll of the keys that passes through the key pressed.
         """
         if options is None:
             options = []
@@ -255,7 +283,7 @@ class Screen:
             message = message.strip("\n").split("\n")
 
         y_max, x_max = self.getmaxyx()
-        y_offset, x_offset = anchor.offset(message)
+        y_offset, x_offset = anchor.offset(len(message), max(len(line) for line in message))
 
         y = int(vertical * y_max + y_offset)
         x = int(horizontal * x_max + x_offset)
