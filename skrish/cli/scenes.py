@@ -105,23 +105,19 @@ class CharacterCreationScene(Scene):
         screen.clear()
 
         # Screen grid setup
-        y_max, x_max = screen.getmaxyx()
-        main_params = (int(y_max * 0.75), int(x_max * 0.75), 0, 0)
-        log_params = (y_max, int(x_max * 0.25) + 1, 0, int(x_max * 0.75))
-        info_params = (int(y_max * 0.25) + 1, int(x_max * 0.65), int(y_max * 0.75), int(x_max * 0.1))
-        controls_params = (int(y_max * 0.25) + 1, int(x_max * 0.1), int(y_max * 0.75), 0)
+        character, log, info, controls = screen.grid_screen([
+            (0.75, 0.75, 0, 0),
+            (1, 0.25, 0, 0.75),
+            (0.25, 0.65, 0.75, 0.1),
+            (0.25, 0.1, 0.75, 0)
+        ])
 
-        main = Screen(screen.derwin(*main_params))
-        log = Screen(screen.derwin(*log_params))
-        info = Screen(screen.derwin(*info_params))
-        controls = Screen(screen.derwin(*controls_params))
-
-        main.box()
+        character.box()
         log.box()
         info.box()
         controls.box()
 
-        main.put(" Character Creation ", 0, 0, curses.A_BOLD, anchor=util.Anchor.TOP_LEFT, offset=(0, 1))
+        character.put(" Character Creation ", 0, 0, curses.A_BOLD, anchor=util.Anchor.TOP_LEFT, offset=(0, 1))
         log.put(" Log ", 0, 0, curses.A_BOLD, anchor=util.Anchor.TOP_LEFT, offset=(0, 1))
         info.put(" Info ", 0, 0, curses.A_BOLD, anchor=util.Anchor.TOP_LEFT, offset=(0, 1))
         controls.put(" Controls ", 0, 0, curses.A_BOLD, anchor=util.Anchor.TOP_LEFT, offset=(0, 1))
@@ -132,6 +128,7 @@ class CharacterCreationScene(Scene):
             ("left", [curses.KEY_LEFT], "decrement", lambda: None),
             ("right", [curses.KEY_RIGHT], "increment", lambda: None)
         ], vertical=0, horizontal=0, joiner="\n", anchor=util.Anchor.TOP_LEFT, offset=(1, 1))
+
 
 def _back_if_possible():
     """Return a unified back key if possible.

@@ -29,6 +29,30 @@ class Screen:
         self.nodelay = self.screen.nodelay
         self.derwin = self.screen.derwin
 
+    def grid_screen(self, dimensions: List[Tuple[float, float, float, float]]) -> List['Screen']:
+        """Generates a grid of sub-screens based off the given <dimensions>, and returns the list of created
+        sub-screens.
+        """
+        y_max, x_max = self.getmaxyx()
+        screens = []
+        for dimension in dimensions:
+            y_size, x_size = y_max * dimension[0], x_max * dimension[1]
+            y_offset, x_offset = y_max * dimension[2], x_max * dimension[3]
+
+            # To counteract truncating off the edge, cannot round because it is inconsistent (even-odd).
+            if y_size + y_offset == y_max:
+                if int(y_size) < y_size:
+                    y_size += 1
+            if x_size + x_offset == x_max:
+                if int(x_size) < x_size:
+                    x_size += 1
+
+            screens.append(Screen(self.derwin(
+                int(y_size), int(x_size),
+                int(y_offset), int(x_offset)
+            )))
+        return screens
+
     def put(self, message: str, vertical: Optional[float] = None, horizontal: Optional[float] = None, *args,
             refresh: bool = True, anchor: util.Anchor = util.Anchor.CENTER_CENTER,
             offset: Tuple[int, int] = (0, 0)) -> None:
@@ -87,7 +111,7 @@ class Screen:
             counter += 1
 
         if refresh:
-            self.screen.refresh()
+            self.refresh()
 
     def scroll_message(self, message: str, seconds: float,
                        vertical_start: float, horizontal_start: float, vertical_end: float, horizontal_end: float,
@@ -130,11 +154,15 @@ class Screen:
             self.screen.nodelay(False)
 
     def generate_menu(self, options: List[Tuple[str, Callable[[], Any]]],
-                      horizontal: float = 0.5, vertical: float = 0.5,
+                      vertical: float = 0.5, horizontal: float = 0.5,
                       anchor: util.Anchor = util.Anchor.CENTER_CENTER, spacing: int = 2,
                       min_width: int = 10, edges: Tuple[str, str] = ("[", "]"),
                       selected_style=curses.A_STANDOUT) -> List[Tuple[str, List[int], str, Callable[[], Any]]]:
-        """Generate a menu with the given options.
+        """Generate a menu with the given <options> which is a list of tuples that represents the option name and
+        action to take upon choosing it. The menu is positioned at <vertical> and <horizontal> percentages of the screen
+        with respect to an <anchor>. The vertical <spacing> between menu items can be specified as well as the
+        <min_width> of the items, which are terminated by the left and right <edges>, a 2-tuple. A <selected_style> is
+        applied the currently selected item.
         """
         num_selections = len(options)
         width = max(min_width, max(len(option[0]) for option in options))
@@ -185,8 +213,9 @@ class Screen:
                    show_keys: bool = True, callback: Callable[[int], Any] = lambda i: None,
                    anchor: util.Anchor = util.Anchor.CENTER_CENTER, offset: Tuple[int, int] = (0, 0)) -> None:
         """Watch the keys given by <options> which describes a list of tuples of the form
-        ("key name", keycode, "action name", action). These keys will be displayed at the bottom of the screen if
-        <show_keys> is True, and a <callback> will be called while polling the keys.
+        ("key name", keycode, "action name", action) on the given <listener_screen> if specified, otherwise it will
+        listen on this screen. These keys will be displayed at <vertical> and <horizontal> percentages of the screen
+        with the given <anchor> and <offset> if <show_keys> is set, includes a <callback> while polling the keys.
         """
         if options is None:
             options = []
