@@ -1,6 +1,5 @@
 """Manages a screen wrapper class around the default curses window.
 """
-import curses
 import time
 from typing import Optional, Tuple, List, Union, Callable, Any
 
@@ -179,65 +178,6 @@ class Screen:
 
         if skippable:
             self.screen.nodelay(False)
-
-    def generate_menu(self, options: List[Tuple[str, Callable[[], Any], bool]],
-                      vertical: float = 0.5, horizontal: float = 0.5,
-                      anchor: util.Anchor = util.Anchor.CENTER_CENTER, spacing: int = 2,
-                      min_width: int = 10, edges: Tuple[str, str] = ("[", "]"),
-                      selected_style=curses.A_STANDOUT) -> List[Tuple[str, List[int], str, Callable[[], Any], bool]]:
-        """Generate a menu with the given <options> which is a list of tuples that represents the option name and
-        action to take upon choosing it, and an optional flag to to state whether or not to stop polling for this menu.
-        The menu is positioned at <vertical> and <horizontal> percentages of the screen with respect to an <anchor>.
-        The vertical <spacing> between menu items can be specified as well as the <min_width> of the items,
-        which are terminated by the left and right <edges>, a 2-tuple.
-        A <selected_style> is applied the currently selected item.
-        """
-        num_selections = len(options)
-        width = max(min_width, max(len(option[0]) for option in options))
-
-        class Menu:
-            actions: List[Callable[[], None]]
-            selection: int
-
-            def __init__(self, screen: Screen, actions: List[Callable[[], None]]) -> None:
-                self.screen = screen
-                self.actions = actions
-                self.selection = 0
-
-            def up(self) -> None:
-                self.selection -= 1
-                self.selection %= num_selections
-                self.update()
-
-            def down(self) -> None:
-                self.selection += 1
-                self.selection %= num_selections
-                self.update()
-
-            def select(self) -> Optional[Callable[[], Any]]:
-                call = self.actions[self.selection]
-                if options[self.selection][2]:
-                    return call
-
-                call()
-
-            def update(self) -> None:
-                for i, option in enumerate(options):
-                    message = option[0]
-                    message = edges[0] + message.center(width) + edges[1]
-
-                    self.screen.put(message, vertical, horizontal,
-                                    util.ColorPair.SELECTED.pair |
-                                    selected_style if self.selection == i else curses.A_NORMAL,
-                                    anchor=anchor, offset=(i * spacing, 0))
-
-        menu = Menu(self, [option[1] for option in options])
-        menu.update()
-        return [
-            ("up", [curses.KEY_UP], "select above", menu.up, False),
-            ("down", [curses.KEY_DOWN], "select below", menu.down, False),
-            ("enter", [curses.KEY_ENTER, 10], "select", menu.select, False)
-        ]
 
     def watch_keys(self, options: List[Tuple[str, List[int], str, Callable[[], Any], bool]] = None,
                    listener_screen: 'Screen' = None, vertical: float = 0.95, horizontal: float = 0.5,

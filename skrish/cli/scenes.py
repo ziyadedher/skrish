@@ -48,15 +48,16 @@ class MainMenuScene(Scene):
 
         screen.put(TITLE, 0.3, 0.5, util.ColorPair.TITLE.pair)
 
-        menu = screen.generate_menu([
+        menu = util.Menu(screen, [
             ("START", lambda: _scene_goto("character_creation", remove_history=True), True),
             ("OPTIONS", lambda: _scene_goto("options"), True),
             ("CREDITS", lambda: _scene_goto("credits"), True),
             ("QUIT", self.ask_quit, True)
         ], min_width=25, selected_style=curses.A_BOLD)
 
-        return screen.watch_keys(options=menu)()
+        return screen.watch_keys(menu.get_standard_keybinds())()
 
+    # FIXME: resetting of main menu
     @staticmethod
     def ask_quit() -> Callable[[], Tuple[Optional[Scene], SceneControl]]:
         quit_screen = screen.dialogue(0.5, 0.5, 0.5, 0.5)
@@ -67,12 +68,12 @@ class MainMenuScene(Scene):
         quit_screen.put(text, 0.4, 0.5,
                         util.ColorPair.WARNING.pair)
 
-        menu = quit_screen.generate_menu([
+        menu = util.Menu(quit_screen, [
             ("NO", lambda: _scene_goto("NOOP"), True),
             ("YES", lambda: _scene_goto("EXIT"), True),
         ], min_width=10, selected_style=curses.A_BOLD)
 
-        return quit_screen.watch_keys(menu + _close_dialogue(), listener_screen=screen)()
+        return quit_screen.watch_keys(menu.get_standard_keybinds() + _close_dialogue(), listener_screen=screen)()
 
 
 @register_scene("options")
@@ -118,28 +119,49 @@ class CharacterCreationScene(Scene):
         info.put(" Info ", 0, 0, curses.A_BOLD, anchor=util.Anchor.TOP_LEFT, offset=(0, 1))
         controls.put(" Controls ", 0, 0, curses.A_BOLD, anchor=util.Anchor.TOP_LEFT, offset=(0, 1))
 
-        return controls.watch_keys([
-            ("up", [curses.KEY_UP], "select above", lambda: None, False),
-            ("down", [curses.KEY_DOWN], "select below", lambda: None, False),
-            ("left", [curses.KEY_LEFT], "decrement", lambda: None, False),
-            ("right", [curses.KEY_RIGHT], "increment", lambda: None, False),
-            ("backspace", [curses.KEY_BACKSPACE, 127], "main menu", self.ask_main_menu, True)
-        ], vertical=0, horizontal=0, joiner="\n", anchor=util.Anchor.TOP_LEFT, offset=(1, 1))()
+        spinners = [
+            util.Spinner(character, 0, 10, 50, 1),
+            util.Spinner(character, 0, 10, 50, 1),
+            util.Spinner(character, 0, 10, 50, 1),
+            util.Spinner(character, 0, 10, 50, 1),
+            util.Spinner(character, 0, 10, 50, 1)
+        ]
 
+        menu = util.Menu(character, [
+            ("Strength", spinners[0].generate_selected_method(controls, screen), False),
+            ("Attack", spinners[1].generate_selected_method(controls, screen), False),
+            ("Defence", spinners[2].generate_selected_method(controls, screen), False),
+            ("Intelligence", spinners[3].generate_selected_method(controls, screen), False),
+            ("Agility", spinners[4].generate_selected_method(controls, screen), False)
+        ], vertical=0, horizontal=0, anchor=util.Anchor.TOP_LEFT, offset=(5, 5))
+
+        menu.attach_spinners(spinners, 0.1)
+
+        return controls.watch_keys(
+            menu.get_standard_keybinds() + [
+                ("backspace", [curses.KEY_BACKSPACE, 127], "main menu", self.ask_main_menu, True)
+            ],
+            vertical=0, horizontal=0, joiner="\n", anchor=util.Anchor.TOP_LEFT, offset=(1, 1),
+            listener_screen=screen
+        )()
+
+    # FIXME: resetting of character creation
     @staticmethod
     def ask_main_menu() -> Callable[[], Tuple[Optional[Scene], SceneControl]]:
         sure = screen.dialogue(0.3, 0.5, 0.5, 0.5)
+
+        sure.put("=== MAIN MENU ===", 0.25, 0.5, curses.A_BOLD, anchor=util.Anchor.CENTER_CENTER)
 
         text = "Are you sure you want to return to the main menu and discard your character?"
         sure.put(text, 0.4, 0.5,
                  util.ColorPair.WARNING.pair)
 
-        menu = sure.generate_menu([
+        menu = util.Menu(sure, [
             ("NO", lambda: _scene_goto("NOOP"), True),
             ("YES", lambda: _scene_goto("main_menu"), True),
         ], min_width=10, selected_style=curses.A_BOLD)
 
-        return sure.watch_keys(menu + _close_dialogue(), listener_screen=screen, vertical=0.8)()
+        return sure.watch_keys(menu.get_standard_keybinds() + _close_dialogue(), listener_screen=screen, vertical=0.8)()
 
 
 def _scene_goto(identifier: str, remove_history: bool = False) -> Tuple[Scene, SceneControl]:
