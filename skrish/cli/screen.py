@@ -1,7 +1,8 @@
 """Manages a screen wrapper class around the default curses window.
 """
+import curses
 import time
-from typing import Optional, Tuple, List, Union
+from typing import Optional, Tuple, List, Union, Callable, Any
 
 from skrish.cli import util
 
@@ -56,24 +57,23 @@ class Screen:
         counter = 0
 
         # If the message is out of bounds, then cut it off to prevent an error
-        # FIXME: manual offset is not accounted for
         # FIXME: moving out of bottom-right corner crashes
         new_message_list = message_list
-        if y < 0:
-            new_message_list = message_list[-y:]
-            y = 0
-        if y + num_lines > y_max:
-            if y > y_max:
-                y = y_max
-            new_message_list = message_list[:y_max - y]
+        if y + offset[0] < 0:
+            new_message_list = message_list[-(y + offset[0]):]
+            y = offset[0]
+        if y + offset[0] + num_lines > y_max:
+            if y + offset[0] > y_max:
+                y = y_max - offset[0]
+            new_message_list = message_list[:y_max - (y + offset[0])]
 
-        if x < 0:
-            new_message_list = [line[-x:] for line in new_message_list]
-            x = 0
-        if x + max_line > x_max:
-            if x > x_max:
-                x = x_max
-            new_message_list = [line[:x_max - x] for line in new_message_list]
+        if x + offset[1] < 0:
+            new_message_list = [line[-(x + offset[1]):] for line in new_message_list]
+            x = offset[1]
+        if x + offset[1] + max_line > x_max:
+            if x + offset[1] > x_max:
+                x = x_max - offset[1]
+            new_message_list = [line[:x_max - (x + offset[1])] for line in new_message_list]
 
         for line in new_message_list:
             if not line:
@@ -128,6 +128,88 @@ class Screen:
 
         if skippable:
             self.screen.nodelay(False)
+
+    def generate_menu(self, options: List[Tuple[str, Callable[[], Any]]],
+                      horizontal: float = 0.5, vertical: float = 0.5,
+                      anchor: util.Anchor = util.Anchor.CENTER_CENTER, spacing: int = 2,
+                      min_width: int = 10, edges: Tuple[str, str] = ("[", "]"),
+                      selected_style=curses.A_STANDOUT) -> List[Tuple[str, List[int], str, Callable[[], Any]]]:
+        """Generate a menu with the given options.
+        """
+        num_selections = len(options)
+        width = max(min_width, max(len(option[0]) for option in options))
+
+        class Menu:
+            actions: List[Callable[[], None]]
+            selection: int
+
+            def __init__(self, screen: Screen, actions: List[Callable[[], None]]) -> None:
+                self.screen = screen
+                self.actions = actions
+                self.selection = 0
+
+            def up(self) -> None:
+                self.selection -= 1
+                self.selection %= num_selections
+                self.update()
+
+            def down(self) -> None:
+                self.selection += 1
+                self.selection %= num_selections
+                self.update()
+
+            def select(self) -> None:
+                self.actions[self.selection]()
+
+            def update(self) -> None:
+                for i, option in enumerate(options):
+                    message = option[0]
+                    message = edges[0] + message.center(width) + edges[1]
+
+                    self.screen.put(message, vertical, horizontal,
+                                    util.ColorPair.SELECTED.pair |
+                                    selected_style if self.selection == i else curses.A_NORMAL,
+                                    anchor=anchor, offset=(i * spacing, 0))
+
+        menu = Menu(self, [option[1] for option in options])
+        menu.update()
+        return [
+            ("up", [curses.KEY_UP], "select above", menu.up),
+            ("down", [curses.KEY_DOWN], "select below", menu.down),
+            ("enter", [curses.KEY_ENTER, 10], "select", menu.select)
+        ]
+
+    def watch_keys(self, options: List[Tuple[str, List[int], str, Callable[[], Any]]] = None,
+                   listener_screen: 'Screen' = None,
+                   vertical: float = 0.95, horizontal: float = 0.5, joiner: str = "    ",
+                   show_keys: bool = True, callback: Callable[[int], Any] = lambda i: None,
+                   anchor: util.Anchor = util.Anchor.CENTER_CENTER, offset: Tuple[int, int] = (0, 0)) -> None:
+        """Watch the keys given by <options> which describes a list of tuples of the form
+        ("key name", keycode, "action name", action). These keys will be displayed at the bottom of the screen if
+        <show_keys> is True, and a <callback> will be called while polling the keys.
+        """
+        if options is None:
+            options = []
+        if listener_screen is None:
+            listener_screen = self
+
+        if show_keys:
+            text_array = []
+            for option in options:
+                text_array.append("[{}] {}".format(option[0], option[2]))
+
+            text = joiner.join(text_array)
+            self.put(text, vertical, horizontal, anchor=anchor, offset=offset)
+
+        listener_screen.nodelay(True)
+        while True:
+            key = listener_screen.getch()
+            callback(key)
+
+            for option in options:
+                if key in option[1]:
+                    listener_screen.nodelay(False)
+                    option[3]()
 
     def _absolute_to_scale(self, y: int, x: int) -> Tuple[float, float]:
         """Convert from the absolute <y> and <x> relative to this screen to a scale percentage of the screen.
