@@ -43,21 +43,23 @@ class IntroScene(Scene):
 
 @register_scene("main_menu")
 class MainMenuScene(Scene):
-    def display(self) -> Tuple[Optional[Scene], SceneControl]:
-        screen.clear()
-
-        screen.put(TITLE, 0.3, 0.5, util.ColorPair.TITLE.pair)
-
-        menu = util.Menu(screen, [
+    def __init__(self) -> None:
+        self.menu = util.Menu(screen, [
             ("START", lambda: _scene_goto("character_creation", remove_history=True), True),
             ("OPTIONS", lambda: _scene_goto("options"), True),
             ("CREDITS", lambda: _scene_goto("credits"), True),
             ("QUIT", self.ask_quit, True)
         ], min_width=25, selected_style=curses.A_BOLD)
 
-        return screen.watch_keys(menu.get_standard_keybinds())()
+    def display(self) -> Tuple[Optional[Scene], SceneControl]:
+        screen.clear()
 
-    # FIXME: resetting of main menu
+        screen.put(TITLE, 0.3, 0.5, util.ColorPair.TITLE.pair)
+
+        self.menu.update()
+
+        return screen.watch_keys(self.menu.get_standard_keybinds())()
+
     @staticmethod
     def ask_quit() -> Callable[[], Tuple[Optional[Scene], SceneControl]]:
         quit_screen = screen.dialogue(0.5, 0.5, 0.5, 0.5)
@@ -101,51 +103,55 @@ class CreditsScene(Scene):
 
 @register_scene("character_creation")
 class CharacterCreationScene(Scene):
-    def display(self) -> Tuple[Optional[Scene], SceneControl]:
-        screen.clear()
-
+    def __init__(self) -> None:
         # Screen grid setup
-        character, info, controls = screen.grid_screen([
+        self.character, self.info, self.controls = screen.grid_screen([
             (0.75, 1, 0, 0),
             (0.25, 0.75, 0.75, 0.25),
             (0.25, 0.25, 0.75, 0)
         ])
 
-        character.box()
-        info.box()
-        controls.box()
-
-        character.put(" Character Creation ", 0, 0, curses.A_BOLD, anchor=util.Anchor.TOP_LEFT, offset=(0, 1))
-        info.put(" Info ", 0, 0, curses.A_BOLD, anchor=util.Anchor.TOP_LEFT, offset=(0, 1))
-        controls.put(" Controls ", 0, 0, curses.A_BOLD, anchor=util.Anchor.TOP_LEFT, offset=(0, 1))
-
-        spinners = [
-            util.Spinner(character, 0, 10, 50, 1),
-            util.Spinner(character, 0, 10, 50, 1),
-            util.Spinner(character, 0, 10, 50, 1),
-            util.Spinner(character, 0, 10, 50, 1),
-            util.Spinner(character, 0, 10, 50, 1)
+        self.spinners = [
+            util.Spinner(self.character, 0, 10, 50, 1),
+            util.Spinner(self.character, 0, 10, 50, 1),
+            util.Spinner(self.character, 0, 10, 50, 1),
+            util.Spinner(self.character, 0, 10, 50, 1),
+            util.Spinner(self.character, 0, 10, 50, 1)
         ]
 
-        menu = util.Menu(character, [
-            ("Strength", spinners[0].generate_selected_method(controls, screen), False),
-            ("Attack", spinners[1].generate_selected_method(controls, screen), False),
-            ("Defence", spinners[2].generate_selected_method(controls, screen), False),
-            ("Intelligence", spinners[3].generate_selected_method(controls, screen), False),
-            ("Agility", spinners[4].generate_selected_method(controls, screen), False)
+        self.menu = util.Menu(self.character, [
+            ("Strength", self.spinners[0].generate_selected_method(self.controls, screen), False),
+            ("Attack", self.spinners[1].generate_selected_method(self.controls, screen), False),
+            ("Defence", self.spinners[2].generate_selected_method(self.controls, screen), False),
+            ("Intelligence", self.spinners[3].generate_selected_method(self.controls, screen), False),
+            ("Agility", self.spinners[4].generate_selected_method(self.controls, screen), False)
         ], vertical=0, horizontal=0, anchor=util.Anchor.TOP_LEFT, offset=(5, 5))
 
-        menu.attach_spinners(spinners, 0.1)
+        self.menu.attach_spinners(self.spinners, 0.1)
 
-        return controls.watch_keys(
-            menu.get_standard_keybinds() + [
+    def display(self) -> Tuple[Optional[Scene], SceneControl]:
+        screen.clear()
+
+        self.character.box()
+        self.info.box()
+        self.controls.box()
+
+        self.character.put(" Character Creation ", 0, 0, curses.A_BOLD, anchor=util.Anchor.TOP_LEFT, offset=(0, 1))
+        self.info.put(" Info ", 0, 0, curses.A_BOLD, anchor=util.Anchor.TOP_LEFT, offset=(0, 1))
+        self.controls.put(" Controls ", 0, 0, curses.A_BOLD, anchor=util.Anchor.TOP_LEFT, offset=(0, 1))
+
+        for spinner in self.spinners:
+            spinner.update()
+        self.menu.update()
+
+        return self.controls.watch_keys(
+            self.menu.get_standard_keybinds() + [
                 ("backspace", [curses.KEY_BACKSPACE, 127], "main menu", self.ask_main_menu, True)
             ],
             vertical=0, horizontal=0, joiner="\n", anchor=util.Anchor.TOP_LEFT, offset=(1, 1),
             listener_screen=screen
         )()
 
-    # FIXME: resetting of character creation
     @staticmethod
     def ask_main_menu() -> Callable[[], Tuple[Optional[Scene], SceneControl]]:
         sure = screen.dialogue(0.3, 0.5, 0.5, 0.5)
