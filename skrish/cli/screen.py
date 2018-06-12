@@ -1,7 +1,6 @@
 """Manages a screen wrapper class around the default curses window.
 """
-import time
-from typing import Optional, Tuple, List, Union, Callable, Any
+from typing import Tuple, List, Union, Callable, Any
 
 from skrish.cli.util import Anchor
 
@@ -14,8 +13,6 @@ class Screen:
         """Initialize this screen with the given ncurses window.
         """
         self.stdscr = stdscr
-
-        self.elements = []
 
         # Forward basic functionality
         self.clear = self.stdscr.clear
@@ -72,110 +69,49 @@ class Screen:
     #     screen.refresh()
     #
     #     return screen
-    #
-    # def put(self, message: str, vertical: Optional[float] = None, horizontal: Optional[float] = None, *args,
-    #         refresh: bool = True, anchor: util.Anchor = util.Anchor.CENTER_CENTER,
-    #         offset: Tuple[int, int] = (0, 0)) -> None:
-    #     """Print lines to screen in correct formatting at the given <y> and <x> percentages of the screen
-    #     if specified, and with <anchor> if specified. Accepts an integer absolute <offset> off the given percentages.
-    #     Also passes in all other <args> to the `addstr`.
-    #
-    #     If the <y> or <x> positions are not specified, the text will be placed at the cursor position for the
-    #     respective axis or axes not specified.
-    #
-    #     The anchor is the position of the text to place at the given percentages.
-    #
-    #     NOTE: Try not to use the offset parameter unless necessary.
-    #     """
-    #     message_list = message.strip("\n").split("\n")
-    #     if vertical is None:
-    #         vertical = self._absolute_to_scale(*self.stdscr.getyx())[0]
-    #     if horizontal is None:
-    #         horizontal = self._absolute_to_scale(*self.stdscr.getyx())[1]
-    #
-    #     y_max, x_max = self.stdscr.getmaxyx()
-    #     y, x = self._position_message(message_list, anchor, vertical, horizontal)
-    #
-    #     num_lines = len(message_list)
-    #     max_line = max(len(line) for line in message_list)
-    #     counter = 0
-    #
-    #     # If the message is out of bounds, then cut it off to prevent an error considering the manual offset
-    #     # FIXME: moving out of bottom-right corner crashes
-    #     new_message_list = message_list
-    #     if y + offset[0] < 0:
-    #         new_message_list = message_list[-(y + offset[0]):]
-    #         y = offset[0]
-    #     if y + offset[0] + num_lines > y_max:
-    #         if y + offset[0] > y_max:
-    #             y = y_max - offset[0]
-    #         new_message_list = message_list[:y_max - (y + offset[0])]
-    #
-    #     if x + offset[1] < 0:
-    #         new_message_list = [line[-(x + offset[1]):] for line in new_message_list]
-    #         x = offset[1]
-    #     if x + offset[1] + max_line > x_max:
-    #         if x + offset[1] > x_max:
-    #             x = x_max - offset[1]
-    #         new_message_list = [line[:x_max - (x + offset[1])] for line in new_message_list]
-    #
-    #     for line in new_message_list:
-    #         if not line:
-    #             continue
-    #
-    #         cursor_y, cursor_x = self.stdscr.getyx()
-    #
-    #         self.stdscr.addstr((y if y is not None else cursor_y) + counter + offset[0],
-    #                            (x if x is not None else cursor_x) + offset[1],
-    #                            line, *args)
-    #         counter += 1
-    #
-    #     if refresh:
-    #         self.refresh()
-    #
-    #
-    # def watch_keys(self, options: List[Tuple[str, List[int], str, Callable[[], Any], bool]] = None,
-    #                listener_screen: 'Screen' = None, vertical: float = 0.95, horizontal: float = 0.5,
-    #                joiner: str = "    ", show_keys: bool = True,
-    #                anchor: Anchor = Anchor.CENTER_CENTER, offset: Tuple[int, int] = (0, 0),
-    #                callback: Callable[[int], Any] = lambda i: None) -> Callable[[], Any]:
-    #     """Watch the keys given by <options> which describes a list of tuples of the form
-    #     ("key name", keycode, "action name", action, is_scene_switch)) on the given <listener_screen> if specified,
-    #     otherwise it will listen on this screen. These keys will be displayed at <vertical> and <horizontal> percentages
-    #     of the screen with the given <anchor> and <offset> and joined by <joiner> if <show_keys> is set,
-    #     includes a <callback> for each poll of the keys that passes through the key pressed.
-    #
-    #     Returns the final call from this watch keys to prevent further and further recursion.
-    #     """
-    #     if options is None:
-    #         options = []
-    #     if listener_screen is None:
-    #         listener_screen = self
-    #
-    #     if show_keys:
-    #         text_array = []
-    #         for option in options:
-    #             text_array.append("[{}] {}".format(option[0], option[2]))
-    #
-    #         text = joiner.join(text_array)
-    #         self.put(text, vertical, horizontal, anchor=anchor, offset=offset)
-    #
-    #     listener_screen.stdscr.nodelay(True)
-    #     while True:
-    #         key = listener_screen.stdscr.getch()
-    #         callback(key)
-    #
-    #         for option in options:
-    #             if key in option[1]:
-    #                 listener_screen.stdscr.nodelay(False)
-    #                 call = option[3]
-    #                 if option[4]:
-    #                     return call
-    #
-    #                 call = call()
-    #                 if call is not None:
-    #                     return call
-    #
+
+    def watch_keys(self, options: List[Tuple[str, List[int], str, Callable[[], Any], bool]] = None,
+                   listener_screen: 'Screen' = None, vertical: float = 0.95, horizontal: float = 0.5,
+                   joiner: str = "    ", show_keys: bool = True,
+                   anchor: Anchor = Anchor.CENTER_CENTER, offset: Tuple[int, int] = (0, 0),
+                   callback: Callable[[int], Any] = lambda i: None) -> Callable[[], Any]:
+        """Watch the keys given by <options> which describes a list of tuples of the form
+        ("key name", keycode, "action name", action, is_scene_switch)) on the given <listener_screen> if specified,
+        otherwise it will listen on this screen. These keys will be displayed at <vertical> and <horizontal> percentages
+        of the screen with the given <anchor> and <offset> and joined by <joiner> if <show_keys> is set,
+        includes a <callback> for each poll of the keys that passes through the key pressed.
+
+        Returns the final call from this watch keys to prevent further and further recursion.
+        """
+        if options is None:
+            options = []
+        if listener_screen is None:
+            listener_screen = self
+
+        # if show_keys:
+        #     text_array = []
+        #     for option in options:
+        #         text_array.append("[{}] {}".format(option[0], option[2]))
+        #
+        #     text = joiner.join(text_array)
+        #     self.put(text, vertical, horizontal, anchor=anchor, offset=offset)
+
+        listener_screen.stdscr.nodelay(True)
+        while True:
+            key = listener_screen.stdscr.getch()
+            callback(key)
+
+            for option in options:
+                if key in option[1]:
+                    listener_screen.stdscr.nodelay(False)
+                    call = option[3]
+                    if option[4]:
+                        return call
+
+                    call = call()
+                    if call is not None:
+                        return call
+
     def absolute_to_scale(self, y: int, x: int) -> Tuple[float, float]:
         """Convert from the absolute <y> and <x> relative to this screen to a scale percentage of the screen.
         """

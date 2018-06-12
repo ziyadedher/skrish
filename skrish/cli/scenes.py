@@ -3,8 +3,8 @@
 import curses
 from typing import Callable, Tuple, Optional
 
-from skrish.cli.elements import ElementContainer, BasicTextElement
-from skrish.cli import util
+from skrish.cli.elements import ElementContainer, BasicTextElement, MenuElement, MenuTextElement, Element
+from skrish.cli.util import Anchor, ColorPair
 from skrish.cli.scene_manager import Scene, SceneControl, SceneManager
 from skrish.cli.cli import Interface
 from skrish.cli.screen import Screen
@@ -36,52 +36,59 @@ can_go_back = SceneManager.can_go_back
 @register_scene("intro")
 class IntroScene(Scene):
     def __init__(self) -> None:
-        pass
+        super().__init__()
 
     def display(self) -> Tuple[Optional[Scene], SceneControl]:
         screen.clear()
 
-        intro = BasicTextElement(screen, 0.3, -0.2, TITLE)
+        intro = BasicTextElement(screen, 0.3, -0.2, TITLE, style=ColorPair.TITLE.pair)
         intro.move(2, horizontal=0.7, skippable=True)
 
         return get_scene("main_menu")(), SceneControl.GOTO
 
 
-# @register_scene("main_menu")
-# class MainMenuScene(Scene):
-#     def __init__(self) -> None:
-#         self.menu = util.Menu(screen, [
-#             ("START", lambda: _scene_goto("character_creation", remove_history=True), True),
-#             ("OPTIONS", lambda: _scene_goto("options"), True),
-#             ("CREDITS", lambda: _scene_goto("credits"), True),
-#             ("QUIT", self.ask_quit, True)
-#         ], min_width=25, selected_style=curses.A_BOLD)
-#
-#     def display(self) -> Tuple[Optional[Scene], SceneControl]:
-#         screen.clear()
-#
-#         screen.put(TITLE, 0.3, 0.5, util.ColorPair.TITLE.pair)
-#
-#         self.menu.update()
-#
-#         return screen.watch_keys(self.menu.get_standard_keybinds())()
-#
-#     @staticmethod
-#     def ask_quit() -> Callable[[], Tuple[Optional[Scene], SceneControl]]:
-#         quit_screen = screen.dialogue(0.5, 0.5, 0.5, 0.5)
-#
-#         quit_screen.put("=== QUIT ===", 0.25, 0.5, curses.A_BOLD, anchor=util.Anchor.CENTER_CENTER)
-#
-#         text = "Are you sure you want to quit?"
-#         quit_screen.put(text, 0.4, 0.5,
-#                         util.ColorPair.WARNING.pair)
-#
-#         menu = util.Menu(quit_screen, [
-#             ("NO", lambda: _scene_goto("NOOP"), True),
-#             ("YES", lambda: _scene_goto("EXIT"), True),
-#         ], min_width=10, selected_style=curses.A_BOLD)
-#
-#         return quit_screen.watch_keys(menu.get_standard_keybinds() + _close_dialogue(), listener_screen=screen)()
+@register_scene("main_menu")
+class MainMenuScene(Scene):
+    menu: MenuElement
+
+    def __init__(self) -> None:
+        super().__init__()
+
+        self.menu = MenuElement(screen, 0.5, 0.5, [
+            ("START", lambda: _scene_goto("character_creation", remove_history=True), True),
+            ("OPTIONS", lambda: _scene_goto("options"), True),
+            ("CREDITS", lambda: _scene_goto("credits"), True),
+            ("QUIT", self.ask_quit, True)
+        ], min_width=25, selected_style=curses.A_STANDOUT | curses.A_BOLD)
+        self.element_container.add_element("menu", self.menu)
+
+        self.title = BasicTextElement(screen, 0.3, 0.5, TITLE, style=ColorPair.TITLE.pair)
+        self.element_container.add_element("title", self.title)
+
+    def display(self) -> Tuple[Optional[Scene], SceneControl]:
+        screen.clear()
+
+        self.element_container.update()
+        self.element_container.display()
+
+        return screen.watch_keys(self.menu.get_standard_keybinds())()
+
+    # @staticmethod
+    # def ask_quit() -> Callable[[], Tuple[Optional[Scene], SceneControl]]:
+    #     quit_screen = screen.dialogue(0.5, 0.5, 0.5, 0.5)
+    #
+    #     quit_screen.put("=== QUIT ===", 0.25, 0.5, curses.A_BOLD, anchor=Anchor.CENTER_CENTER)
+    #
+    #     text = "Are you sure you want to quit?"
+    #     quit_screen.put(text, 0.4, 0.5,
+    #                     ColorPair.WARNING.pair)
+    #
+    #     menu = MenuElement(quit_screen, 0.5, 0.5, [
+    #         ("NO", lambda: _scene_goto("NOOP"), True),
+    #         ("YES", lambda: _scene_goto("EXIT"), True),
+    #     ], min_width=10, selected_style=curses.A_BOLD)
+    #
+    #     return quit_screen.watch_keys(menu.get_standard_keybinds() + _close_dialogue(), listener_screen=screen)()
 #
 #
 # @register_scene("options")
@@ -175,38 +182,37 @@ class IntroScene(Scene):
 #
 #         return sure.watch_keys(menu.get_standard_keybinds() + _close_dialogue(), listener_screen=screen, vertical=0.8)()
 #
-#
-# def _scene_goto(identifier: str, remove_history: bool = False) -> Tuple[Scene, SceneControl]:
-#     """Goto the scene with the given <identifier> or `back` to go back. Can also <remove_history>.
-#     """
-#     if identifier == "BACK":
-#         scene = None
-#         control = SceneControl.BACK
-#     elif identifier == "NOOP":
-#         scene = None
-#         control = SceneControl.STAY
-#     elif identifier == "EXIT":
-#         scene = None
-#         control = SceneControl.GOTO
-#     else:
-#         scene = SceneManager.get_scene(identifier)()
-#         control = SceneControl.GOTO
-#
-#     if remove_history:
-#         control = SceneControl.REMOVE_HISTORY
-#
-#     return scene, control
-#
-#
-# def _back_if_possible():
-#     """Return a unified back key if possible.
-#     """
-#     if not can_go_back():
-#         return []
-#     return [("backspace", [curses.KEY_BACKSPACE, 127], "go back", lambda: _scene_goto("BACK"), True)]
-#
-#
-# def _close_dialogue():
-#     """Return a unified close dialogue key.
-#     """
-#     return [("backspace", [curses.KEY_BACKSPACE, 127], "go back", lambda: _scene_goto("NOOP"), True)]
+def _scene_goto(identifier: str, remove_history: bool = False) -> Tuple[Scene, SceneControl]:
+    """Goto the scene with the given <identifier> or `back` to go back. Can also <remove_history>.
+    """
+    if identifier == "BACK":
+        scene = None
+        control = SceneControl.BACK
+    elif identifier == "NOOP":
+        scene = None
+        control = SceneControl.STAY
+    elif identifier == "EXIT":
+        scene = None
+        control = SceneControl.GOTO
+    else:
+        scene = SceneManager.get_scene(identifier)()
+        control = SceneControl.GOTO
+
+    if remove_history:
+        control = SceneControl.REMOVE_HISTORY
+
+    return scene, control
+
+
+def _back_if_possible():
+    """Return a unified back key if possible.
+    """
+    if not can_go_back():
+        return []
+    return [("backspace", [curses.KEY_BACKSPACE, 127], "go back", lambda: _scene_goto("BACK"), True)]
+
+
+def _close_dialogue():
+    """Return a unified close dialogue key.
+    """
+    return [("backspace", [curses.KEY_BACKSPACE, 127], "go back", lambda: _scene_goto("NOOP"), True)]

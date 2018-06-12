@@ -2,8 +2,8 @@
 """
 import curses
 import time
-from typing import Tuple
-
+from collections import Iterable
+from typing import Tuple, List, Callable, Any, Optional, Iterator, TypeVar, Generic, Dict, Union
 from skrish.cli.screen import Screen
 from skrish.cli.util import Anchor
 
@@ -22,6 +22,9 @@ class Element:
     def __init__(self, screen: Screen, vertical: float, horizontal: float, *,
                  offset: Tuple[int, int] = (0, 0), anchor: Anchor = Anchor.CENTER_CENTER) -> None:
         """Initialize this element with basic attributes.
+
+        Basic elements are the <screen> in which this element should be and the <vertical> and <horizontal> percentages
+        of the screen at which this element's <anchor> resides with <offset>.
         """
         self._screen = screen
         self.vertical = vertical
@@ -30,7 +33,7 @@ class Element:
         self.anchor = anchor
         self.__should_display = True
 
-    def set_position(self, vertical: float = None, horizontal: float = None,
+    def set_position(self, *, vertical: float = None, horizontal: float = None,
                      offset: Tuple[int, int] = None, anchor: Anchor = None) -> None:
         """Set the position of this element in <vertical> and <horizontal> percentages of the screen with given
         <anchor> and <offset>. All parameters are optional and not inputting anything will not change the value.
@@ -58,7 +61,7 @@ class Element:
         """
         return self.__should_display
 
-    def update(self, display: bool = True) -> None:
+    def update(self, *, display: bool = True) -> None:
         """Update this element and set it to be displayed, it can be held from display if <display> is set to False.
         """
         if display:
@@ -117,32 +120,51 @@ class Element:
         self._move_post()
 
 
-class ElementContainer:
+T = TypeVar('T')
+
+
+class ElementContainer(Iterable, Generic[T]):
     """Contains elements and allows easier batch management.
     """
+    _elements: Dict[str, T]
+
     def __init__(self) -> None:
         """Initialize this element watcher.
         """
-        self.elements = []
+        self._elements = {}
 
-    def add_element(self, element: Element) -> None:
-        """Add the given element to the screen.
+    def __setitem__(self, identifier: str, element: T) -> None:
+        self.add_element(identifier, element)
+
+    def __getitem__(self, identifier: str) -> T:
+        return self.get_element(identifier)
+
+    def __iter__(self) -> Iterator:
+        return iter(self._elements.values())
+
+    def add_element(self, identifier: str, element: T) -> None:
+        """Add the <element> to the container with <identifier>.
         """
-        self.elements.append(element)
+        self._elements[identifier] = element
+
+    def get_element(self, identifier: str) -> T:
+        """Get the element with the given <identifier> in the container.
+        """
+        return self._elements[identifier]
 
     def update(self) -> None:
         """Update this screen and all elements within it.
         """
-        for element in self.elements:
-            element.update(True)
+        for element in self._elements.values():
+            element.update()
 
     def display(self) -> None:
         """Display all updated elements set to be displayed. Elements are automatically set to be displayed after
         being updated unless otherwise flagged.
         """
-        for element in self.elements:
+        for element in self._elements.values():
             if element.should_display():
-                element.display(self)
+                element.display()
 
 
 class BasicTextElement(Element):
@@ -154,14 +176,13 @@ class BasicTextElement(Element):
     def __init__(self, screen: Screen, vertical: float, horizontal: float, text: str, *,
                  offset: Tuple[int, int] = (0, 0), anchor: Anchor = Anchor.CENTER_CENTER,
                  style: int = curses.A_NORMAL) -> None:
-        """Initialize this element with basic attributes and text attributes.
+        """Initialize this basic text element with basic attributes and text attributes.
+
+        Text attributes are the <text> to be displayed in a <style>.
         """
         super(BasicTextElement, self).__init__(screen, vertical, horizontal, offset=offset, anchor=anchor)
         self.text = text
         self.style = style
-
-    def update(self, display: bool = True) -> None:
-        super(BasicTextElement, self).update(display)
 
     def display(self) -> None:
         text_list = self.text.strip("\n").split("\n")
@@ -219,93 +240,100 @@ class BasicTextElement(Element):
         text_list = [line[1:-1] for line in text_list[1:-1]]
         self.text = "\n".join(text_list)
 
-# class Menu:
-#     """Menu object that allows selection of a number of options.
-#     """
-#     screen: 'Screen'
-#     options: List[Tuple[str, Callable[[], Any], bool]]
-#     vertical: float
-#     horizontal: float
-#     anchor: Anchor = Anchor.CENTER_CENTER
-#     offset: Tuple[int, int]
-#     spacing: int
-#     min_width: int
-#     edges: Tuple[str, str]
-#     selected_style = curses.A_STANDOUT
-#
-#     selection: int
-#
-#     def __init__(self, screen: 'Screen',
-#                  options: List[Tuple[str, Callable[[], Any], bool]],
-#                  vertical: float = 0.5, horizontal: float = 0.5,
-#                  anchor: Anchor = Anchor.CENTER_CENTER, offset: Tuple[int, int] = (0, 0), spacing: int = 2,
-#                  min_width: int = 10, edges: Tuple[str, str] = ("[", "]"),
-#                  selected_style: int = curses.A_STANDOUT) -> None:
-#         """Initialize a menu on the given <screen> with the given <options> which is a list of tuples that represents
-#         the option name and action to take upon choosing it, and an optional flag to to state whether or not to stop
-#         polling for this menu. The menu is positioned at <vertical> and <horizontal> percentages of the screen with
-#         respect to an <anchor> and given <offset>. The vertical <spacing> between menu items can be specified as well
-#         as the <min_width> of the items, which are terminated by the left and right <edges>, a 2-tuple.
-#         A <selected_style> is applied the currently selected item.
-#         """
-#         self.screen = screen
-#         self.options = options
-#         self.vertical, self.horizontal = vertical, horizontal
-#         self.anchor = anchor
-#         self.offset = offset
-#         self.spacing = spacing
-#         self.min_width = min_width
-#         self.edges = edges
-#         self.selected_style = selected_style
-#
-#         self.selection = 0
-#
-#         self.update()
-#
-#     def up(self) -> None:
-#         """Go up in the list.
-#         """
-#         self.selection -= 1
-#         self.selection %= len(self.options)
-#         self.update()
-#
-#     def down(self) -> None:
-#         """Go down in the list.
-#         """
-#         self.selection += 1
-#         self.selection %= len(self.options)
-#         self.update()
-#
-#     def select(self) -> Optional[Callable[[], Any]]:
-#         """Select the currently highlighted option.
-#         """
-#         call = self.options[self.selection][1]
-#         if self.options[self.selection][2]:
-#             return call
-#
-#         call()
-#
-#     def update(self) -> None:
-#         """Update this menu's screen with its information.
-#         """
-#         width = max(self.min_width, max(len(option[0]) for option in self.options))
-#         for i, option in enumerate(self.options):
-#             message = option[0]
-#             message = self.edges[0] + message.center(width) + self.edges[1]
-#
-#             self.screen.put(message, self.vertical, self.horizontal,
-#                             ColorPair.SELECTED.pair |
-#                             self.selected_style if self.selection == i else curses.A_NORMAL,
-#                             anchor=self.anchor, offset=(i * self.spacing + self.offset[0], self.offset[1]))
-#
-#     def get_standard_keybinds(self) -> List[Tuple[str, List[int], str, Callable[[], Any], bool]]:
-#         """Get the standard keybinds for menu navigation.
-#         """
-#         return [
-#             ("up", [curses.KEY_UP], "select above", self.up, False),
-#             ("down", [curses.KEY_DOWN], "select below", self.down, False),
-#             ("enter", [curses.KEY_ENTER, 10], "select", self.select, False)
-#         ]
+
+class MenuTextElement(BasicTextElement):
+    """Menu text element for easier text element use with menus. Must be used inside a menu.
+    """
+
+    def __init__(self, text: str, style: int = curses.A_NORMAL) -> None:
+        # noinspection PyTypeChecker
+        super().__init__(None, 0, 0, text, style=style)
+
+
+class MenuElement(Element):
+    """Menu element that allows selection of a number of options.
+    """
+    options: List[Tuple[BasicTextElement, Callable[[], Any], bool]]
+    spacing: int
+    min_width: int
+    edges: Tuple[str, str]
+    selected_style: int
+
+    selection: int
+    __elements: ElementContainer[BasicTextElement]
+
+    def __init__(self, screen: Screen, vertical: float, horizontal: float,
+                 options: List[Tuple[Union[BasicTextElement, str], Callable[[], Any], bool]], *,
+                 offset: Tuple[int, int] = (0, 0), anchor: Anchor = Anchor.CENTER_CENTER,
+                 spacing: int = 2, min_width: int = 0, edges: Tuple[str, str] = ("[", "]"),
+                 selected_style: int = curses.A_STANDOUT) -> None:
+        """Initialize this menu element with basic attributes and menu attributes.
+
+        Menu attributes are the <options> to include which consists of a list of tuples each representing an entry
+        consisting of a BasicTextElement, callable action function, and whether or not this action should end the menu.
+        In addition, <spacing> between elements, <min_width> of each element, <edges> to delimit each entry,
+        and the style of the current selection <selected_style> can all be set.
+        """
+        super().__init__(screen, vertical, horizontal, offset=offset, anchor=anchor)
+        self.options = options
+        self.spacing = spacing
+        self.min_width = min_width
+        self.edges = edges
+        self.selected_style = selected_style
+
+        self.selection = -1
+        self.__elements = ElementContainer()
+        for i, option in enumerate(options):
+            element = option[0] if isinstance(option[0], MenuTextElement) else MenuTextElement(option[0])
+            self.__elements.add_element(str(i), element)
+
+    def display(self) -> None:
+        width = max(self.min_width, max(len(element.text) for element in self.__elements))
+        for i, element in enumerate(self.__elements):
+            if not (element.text[0] == self.edges[0] and element.text[-1] == self.edges[1]):
+                element.text = self.edges[0] + element.text.center(width) + self.edges[1]
+            element.style = self.selected_style if self.selection == i else curses.A_NORMAL
+            element.set_position(vertical=self.vertical,
+                                 horizontal=self.horizontal,
+                                 offset=(self.offset[0] + i * self.spacing, self.offset[1]),
+                                 anchor=self.anchor)
+            element.set_screen(self._screen)
+            element.update()
+        self.__elements.display()
+
+    def up(self) -> None:
+        """Go up in the list.
+        """
+        self.selection -= 1
+        self.selection %= len(self.options)
+        self.display()
+
+    def down(self) -> None:
+        """Go down in the list.
+        """
+        self.selection += 1
+        self.selection %= len(self.options)
+        self.display()
+
+    def select(self) -> Optional[Callable[[], Any]]:
+        """Select the currently highlighted option.
+        """
+        if self.selection < 0:
+            return
+
+        call = self.options[self.selection][1]
+        if self.options[self.selection][2]:
+            return call
+        call()
+
+    def get_standard_keybinds(self) -> List[Tuple[str, List[int], str, Callable[[], Any], bool]]:
+        """Get the standard keybinds for menu navigation.
+        """
+        return [
+            ("up", [curses.KEY_UP], "select above", self.up, False),
+            ("down", [curses.KEY_DOWN], "select below", self.down, False),
+            ("enter", [curses.KEY_ENTER, 10], "select", self.select, False)
+        ]
 #
 #     def attach_spinners(self, spinners: List['Spinner'], gap: float = 0.05) -> None:
 #         """Attach the given <spinners> to this menu with the given <gap>.

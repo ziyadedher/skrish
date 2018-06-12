@@ -2,7 +2,8 @@
 """
 import sys
 from enum import Enum
-from typing import Iterable, Callable, Dict, List, Any, Tuple, Optional
+from typing import Iterable, Callable, Dict, List, Tuple, Optional
+from skrish.cli.elements import ElementContainer
 
 
 class NoSuchSceneException(Exception):
@@ -19,6 +20,12 @@ class SceneControl(Enum):
 class Scene:
     """Abstract scene class.
     """
+    element_container: ElementContainer
+
+    def __init__(self) -> None:
+        """Initialize the abstract scene with an empty element container.
+        """
+        self.element_container = ElementContainer()
 
     def display(self) -> Tuple[Optional['Scene'], int]:
         """Construct and display the scene.
