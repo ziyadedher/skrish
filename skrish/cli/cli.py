@@ -36,25 +36,6 @@ class Interface:
             from skrish.cli.scene_manager import SceneManager
             SceneManager.call_scene(identifier, no_back=True)
 
-        def error(self, message: str) -> None:
-            """Display an error <message> to screen and wait for user input.
-            """
-            top_bar_message = "Oops! Something went wrong and an error has occured."
-
-            self.screen.clear()
-            self.screen.border()
-
-            self.screen.display(top_bar_message,
-                                *self.screen.positionyx(top_bar_message, vertical=0.1, horizontal=0.5),
-                                util.ColorPair.ERROR.pair)
-
-            self.screen.display(message,
-                                *self.screen.positionyx(message, vertical=0.5, horizontal=0.5),
-                                util.ColorPair.STANDARD.pair)
-
-            self.screen.refresh()
-            self.screen.getch()
-
         def exit(self) -> None:
             """Exit the interface cleanly with no error.
             """
@@ -69,7 +50,7 @@ class Interface:
             curses.curs_set(0)  # Do not display the cursor
             curses.start_color()  # Allow coloring
             util.ColorPair.init_color_pairs()  # Initialize custom color pairs
-            self.screen.keypad(True)  # Parse weird keys
+            self.screen.stdscr.keypad(True)  # Parse weird keys
 
         def __curses_deconfig(self) -> None:
             """Deconfigure curses to revert nice terminal settings.
@@ -77,7 +58,7 @@ class Interface:
             curses.echo()
             curses.nocbreak()
             curses.curs_set(1)
-            self.screen.keypad(False)
+            self.screen.stdscr.keypad(False)
 
     instance: __Interface = None
 

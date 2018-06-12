@@ -15,10 +15,10 @@ class SceneControl(Enum):
     STAY = 0
     GOTO = 1
 
+
 class Scene:
     """Abstract scene class.
     """
-    name: str
 
     def display(self) -> Tuple[Optional['Scene'], int]:
         """Construct and display the scene.
