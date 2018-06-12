@@ -18,29 +18,29 @@ class Screen:
         self.clear = self.stdscr.clear
         self.box = self.stdscr.box
 
-    # def grid_screen(self, dimensions_list: List[Tuple[float, float, float, float]]) -> List['Screen']:
-    #     """Generates a grid of sub-screens based off the given <dimensions_list>, and returns the list of created
-    #     sub-screens.
-    #     """
-    #     y_max, x_max = self.stdscr.getmaxyx()
-    #     screens = []
-    #     for dimensions in dimensions_list:
-    #         y_size, x_size = y_max * dimensions[0], x_max * dimensions[1]
-    #         y_offset, x_offset = y_max * dimensions[2], x_max * dimensions[3]
-    #
-    #         # Counteract truncating off the edge, cannot round because it is inconsistent (even-odd).
-    #         if y_size + y_offset == y_max:
-    #             if int(y_size) < y_size:
-    #                 y_size += 1
-    #         if x_size + x_offset == x_max:
-    #             if int(x_size) < x_size:
-    #                 x_size += 1
-    #
-    #         screens.append(Screen(self.stdscr.derwin(
-    #             int(y_size), int(x_size),
-    #             int(y_offset), int(x_offset)
-    #         )))
-    #     return screens
+    def grid_screen(self, dimensions_list: List[Tuple[float, float, float, float]]) -> List['Screen']:
+        """Generates a grid of sub-screens based off the given <dimensions_list>, and returns the list of created
+        sub-screens.
+        """
+        y_max, x_max = self.stdscr.getmaxyx()
+        screens = []
+        for dimensions in dimensions_list:
+            y_size, x_size = y_max * dimensions[0], x_max * dimensions[1]
+            y_offset, x_offset = y_max * dimensions[2], x_max * dimensions[3]
+
+            # Counteract truncating off the edge, cannot round because it is inconsistent (even-odd).
+            if y_size + y_offset == y_max:
+                if int(y_size) < y_size:
+                    y_size += 1
+            if x_size + x_offset == x_max:
+                if int(x_size) < x_size:
+                    x_size += 1
+
+            screens.append(Screen(self.stdscr.derwin(
+                int(y_size), int(x_size),
+                int(y_offset), int(x_offset)
+            )))
+        return screens
 
     def dialogue(self, vertical_size: float, horizontal_size: float, vertical_offset: float, horizontal_offset: float,
                  anchor: Anchor = Anchor.CENTER_CENTER) -> 'Screen':
@@ -87,6 +87,7 @@ class Screen:
         if listener_screen is None:
             listener_screen = self
 
+        # TODO: implement showing of keys
         # if show_keys:
         #     text_array = []
         #     for option in options:

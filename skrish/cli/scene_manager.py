@@ -101,9 +101,3 @@ class SceneManager:
         if len(SceneManager.__history) < 2:
             return None
         return SceneManager.__history.pop()
-
-    @staticmethod
-    def __quit() -> None:
-        """Quit the scene manager.
-        """
-        sys.exit(0)

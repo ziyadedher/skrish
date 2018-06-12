@@ -3,7 +3,7 @@
 import curses
 from typing import Callable, Tuple, Optional
 
-from skrish.cli.elements import ElementContainer, BasicTextElement, MenuElement, MenuTextElement, Element
+from skrish.cli.elements import ElementContainer, BasicTextElement, MenuElement, Element, SpinnerElement
 from skrish.cli.util import Anchor, ColorPair
 from skrish.cli.scene_manager import Scene, SceneControl, SceneManager
 from skrish.cli.cli import Interface
@@ -68,7 +68,6 @@ class MainMenuScene(Scene):
     def display(self) -> Tuple[Optional[Scene], SceneControl]:
         screen.clear()
 
-        self.element_container.update()
         self.element_container.display()
 
         return screen.watch_keys(self.menu.get_standard_keybinds())()
@@ -89,108 +88,119 @@ class MainMenuScene(Scene):
         return quit_screen.watch_keys(menu.get_standard_keybinds() + _close_dialogue(), listener_screen=screen)()
 
 
-# @register_scene("options")
-# class OptionsScene(Scene):
-#     def display(self) -> Tuple[Optional[Scene], SceneControl]:
-#         screen.clear()
-#
-#         screen.put("=== OPTIONS ===", 0.25, 0.5, curses.A_BOLD, anchor=util.Anchor.CENTER_CENTER)
-#
-#         return screen.watch_keys(_back_if_possible())()
-#
-#
-# @register_scene("credits")
-# class CreditsScene(Scene):
-#     def display(self) -> Tuple[Optional[Scene], SceneControl]:
-#         screen.clear()
-#
-#         screen.put("=== CREDITS ===", 0.25, 0.5, curses.A_BOLD, anchor=util.Anchor.CENTER_CENTER)
-#
-#         text = "Ziyad Edher"
-#         screen.put(text, 0.5, 0.5, util.ColorPair.STANDARD.pair)
-#
-#         return screen.watch_keys(_back_if_possible())()
-#
-#
-# @register_scene("character_creation")
-# class CharacterCreationScene(Scene):
-#     def __init__(self) -> None:
-#         # Screen grid setup
-#         self.character, self.info, self.controls = screen.grid_screen([
-#             (0.75, 1, 0, 0),
-#             (0.25, 0.75, 0.75, 0.25),
-#             (0.25, 0.25, 0.75, 0)
-#         ])
-#
-#         self.spinners = [
-#             util.Spinner(self.character, 0, 10, 50, 1),
-#             util.Spinner(self.character, 0, 10, 50, 1),
-#             util.Spinner(self.character, 0, 10, 50, 1),
-#             util.Spinner(self.character, 0, 10, 50, 1),
-#             util.Spinner(self.character, 0, 10, 50, 1)
-#         ]
-#
-#         self.menu = util.Menu(self.character, [
-#             ("Strength", self.spinners[0].generate_selected_method(self.controls, screen), False),
-#             ("Attack", self.spinners[1].generate_selected_method(self.controls, screen), False),
-#             ("Defence", self.spinners[2].generate_selected_method(self.controls, screen), False),
-#             ("Intelligence", self.spinners[3].generate_selected_method(self.controls, screen), False),
-#             ("Agility", self.spinners[4].generate_selected_method(self.controls, screen), False)
-#         ], vertical=0, horizontal=0, anchor=util.Anchor.TOP_LEFT, offset=(5, 5))
-#
-#         self.menu.attach_spinners(self.spinners, 0.1)
-#
-#     def display(self) -> Tuple[Optional[Scene], SceneControl]:
-#         screen.clear()
-#
-#         self.character.box()
-#         self.info.box()
-#         self.controls.box()
-#
-#         self.character.put(" Character Creation ", 0, 0, curses.A_BOLD, anchor=util.Anchor.TOP_LEFT, offset=(0, 1))
-#         self.info.put(" Info ", 0, 0, curses.A_BOLD, anchor=util.Anchor.TOP_LEFT, offset=(0, 1))
-#         self.controls.put(" Controls ", 0, 0, curses.A_BOLD, anchor=util.Anchor.TOP_LEFT, offset=(0, 1))
-#
-#         for spinner in self.spinners:
-#             spinner.update()
-#         self.menu.update()
-#
-#         return self.controls.watch_keys(
-#             self.menu.get_standard_keybinds() + [
-#                 ("backspace", [curses.KEY_BACKSPACE, 127], "main menu", self.ask_main_menu, True)
-#             ],
-#             vertical=0, horizontal=0, joiner="\n", anchor=util.Anchor.TOP_LEFT, offset=(1, 1),
-#             listener_screen=screen
-#         )()
-#
-#     @staticmethod
-#     def ask_main_menu() -> Callable[[], Tuple[Optional[Scene], SceneControl]]:
-#         sure = screen.dialogue(0.3, 0.5, 0.5, 0.5)
-#
-#         sure.put("=== MAIN MENU ===", 0.25, 0.5, curses.A_BOLD, anchor=util.Anchor.CENTER_CENTER)
-#
-#         text = "Are you sure you want to return to the main menu and discard your character?"
-#         sure.put(text, 0.4, 0.5,
-#                  util.ColorPair.WARNING.pair)
-#
-#         menu = util.Menu(sure, [
-#             ("NO", lambda: _scene_goto("NOOP"), True),
-#             ("YES", lambda: _scene_goto("main_menu"), True),
-#         ], min_width=10, selected_style=curses.A_BOLD)
-#
-#         return sure.watch_keys(menu.get_standard_keybinds() + _close_dialogue(), listener_screen=screen, vertical=0.8)()
-#
+@register_scene("options")
+class OptionsScene(Scene):
+    def __init__(self) -> None:
+        super().__init__()
+        self.element_container["title"] = BasicTextElement(screen, 0.25, 0.5, "=== OPTIONS ===", style=curses.A_BOLD)
+
+    def display(self) -> Tuple[Optional[Scene], SceneControl]:
+        screen.clear()
+
+        self.element_container.display()
+
+        return screen.watch_keys(_back_if_possible())()
+
+
+@register_scene("credits")
+class CreditsScene(Scene):
+    def __init__(self) -> None:
+        super().__init__()
+        self.element_container["title"] = BasicTextElement(screen, 0.25, 0.5, "=== CREDITS ===", style=curses.A_BOLD)
+
+    def display(self) -> Tuple[Optional[Scene], SceneControl]:
+        screen.clear()
+
+        self.element_container.display()
+
+        return screen.watch_keys(_back_if_possible())()
+
+
+@register_scene("character_creation")
+class CharacterCreationScene(Scene):
+    character: Screen
+    info: Screen
+    controls: Screen
+
+    def __init__(self) -> None:
+        super().__init__()
+
+        self.character, self.info, self.controls = screen.grid_screen([
+            (0.75, 1, 0, 0),
+            (0.25, 0.75, 0.75, 0.25),
+            (0.25, 0.25, 0.75, 0)
+        ])
+
+        spinners = [
+            SpinnerElement(screen, 0, 0, 1, min_value=0, max_value=50, initial_value=10, label="Strength"),
+            SpinnerElement(screen, 0, 0, 1, min_value=0, max_value=50, initial_value=10, label="Attack"),
+            SpinnerElement(screen, 0, 0, 1, min_value=0, max_value=50, initial_value=10, label="Defence"),
+            SpinnerElement(screen, 0, 0, 1, min_value=0, max_value=50, initial_value=10, label="Agility"),
+            SpinnerElement(screen, 0, 0, 1, min_value=0, max_value=50, initial_value=10, label="Intelligence")
+        ]
+        self.menu = MenuElement(self.character, 0, 0, [
+            (spinners[0], spinners[0].generate_selected_method(screen), False),
+            (spinners[1], spinners[1].generate_selected_method(screen), False),
+            (spinners[2], spinners[2].generate_selected_method(screen), False),
+            (spinners[3], spinners[3].generate_selected_method(screen), False),
+            (spinners[4], spinners[4].generate_selected_method(screen), False)
+        ], anchor=Anchor.TOP_LEFT, offset=(5, 5), edges=("", ""))
+        self.element_container["character_stats_menu"] = self.menu
+
+        self.element_container["character_title"] = \
+            BasicTextElement(self.character, 0, 0, " Character Creation ",
+                             anchor=Anchor.TOP_LEFT, offset=(0, 2), style=curses.A_BOLD)
+        self.element_container["info_title"] = \
+            BasicTextElement(self.info, 0, 0, " Info ",
+                             anchor=Anchor.TOP_LEFT, offset=(0, 2), style=curses.A_BOLD)
+        self.element_container["controls_title"] = \
+            BasicTextElement(self.controls, 0, 0, " Controls ",
+                             anchor=Anchor.TOP_LEFT, offset=(0, 2), style=curses.A_BOLD)
+
+    def display(self) -> Tuple[Optional[Scene], SceneControl]:
+        screen.clear()
+
+        self.character.box()
+        self.info.box()
+        self.controls.box()
+
+        self.element_container.display()
+
+        return self.controls.watch_keys(
+            self.menu.get_standard_keybinds() + [
+                ("backspace", [curses.KEY_BACKSPACE, 127], "main menu", self.ask_main_menu, True)
+            ],
+            vertical=0, horizontal=0, joiner="\n", anchor=Anchor.TOP_LEFT, offset=(1, 1),
+            listener_screen=screen
+        )()
+
+    @staticmethod
+    def ask_main_menu() -> Callable[[], Tuple[Optional[Scene], SceneControl]]:
+        sure = screen.dialogue(0.5, 0.5, 0.4, 0.5)
+
+        BasicTextElement(sure, 0.25, 0.5, "=== MAIN MENU ===", style=curses.A_BOLD).display()
+        BasicTextElement(sure, 0.4, 0.5,
+                         "Are you sure you want to go back to the main menu and discard your character?",
+                         style=ColorPair.WARNING.pair).display()
+
+        menu = MenuElement(sure, 0.5, 0.5, [
+            ("NO", lambda: _scene_goto("NOOP"), True),
+            ("YES", lambda: _scene_goto("EXIT"), True),
+        ], min_width=10, initial_selection=0)
+        menu.display()
+
+        return sure.watch_keys(menu.get_standard_keybinds() + _close_dialogue(), listener_screen=screen)()
+
+
 def _scene_goto(identifier: str, remove_history: bool = False) -> Tuple[Scene, SceneControl]:
     """Goto the scene with the given <identifier> or `back` to go back. Can also <remove_history>.
     """
+    scene = None
     if identifier == "BACK":
-        scene = None
         control = SceneControl.BACK
     elif identifier == "NOOP":
-        scene = None
         control = SceneControl.STAY
     elif identifier == "EXIT":
-        scene = None
         control = SceneControl.GOTO
     else:
         scene = SceneManager.get_scene(identifier)()

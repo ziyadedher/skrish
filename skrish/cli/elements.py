@@ -33,8 +33,6 @@ class Element:
         self.anchor = anchor
         self.__should_display = True
 
-        self.update()
-
     def set_position(self, *, vertical: float = None, horizontal: float = None,
                      offset: Tuple[int, int] = None, anchor: Anchor = None) -> None:
         """Set the position of this element in <vertical> and <horizontal> percentages of the screen with given
@@ -55,22 +53,11 @@ class Element:
         past_screen = self._screen
         self._screen = screen
         if display:
-            self.update()
+            self.display()
         return past_screen
 
-    def should_display(self) -> bool:
-        """Get whether or not this element is queued to be displayed.
-        """
-        return self.__should_display
-
-    def update(self, *, display: bool = True) -> None:
-        """Update this element and set it to be displayed, it can be held from display if <display> is set to False.
-        """
-        if display:
-            self.__should_display = True
-
     def display(self) -> None:
-        """Display this element on the set screen and refresh.
+        """Update and display this element on the set screen and refresh.
         """
         raise NotImplementedError
 
@@ -157,19 +144,12 @@ class ElementContainer(Iterable, Generic[T]):
         """
         return self._elements[identifier]
 
-    def update(self) -> None:
-        """Update this screen and all elements within it.
-        """
-        for element in self._elements.values():
-            element.update()
-
     def display(self) -> None:
         """Display all updated elements set to be displayed. Elements are automatically set to be displayed after
         being updated unless otherwise flagged.
         """
         for element in self._elements.values():
-            if element.should_display():
-                element.display()
+            element.display()
 
 
 class BasicTextElement(Element):
@@ -185,7 +165,7 @@ class BasicTextElement(Element):
 
         Text attributes are the <text> to be displayed in a <style>.
         """
-        super(BasicTextElement, self).__init__(screen, vertical, horizontal, offset=offset, anchor=anchor)
+        super().__init__(screen, vertical, horizontal, offset=offset, anchor=anchor)
         self.text = text
         self.style = style
 
@@ -231,47 +211,147 @@ class BasicTextElement(Element):
 
         self._screen.stdscr.refresh()
 
-    def _move_pre(self) -> None:
+    def move(self, *args, **kwargs) -> None:
         # Pad the message with spaces to not need to clear
         text_list = self.text.strip("\n").split("\n")
-
         h_padding, v_padding = " ", (" " * max(len(line) for line in text_list) if text_list else 0)
         text_list = [(h_padding + line + h_padding) for line in text_list]
-
         self.text = (v_padding + "\n") + ("\n".join(text_list)) + ("\n" + v_padding)
 
-    def _move_post(self) -> None:
+        super().move(*args, **kwargs)
+
         # Removing the padding added before
         text_list = self.text.strip("\n").split("\n")
-
         text_list = [line[1:-1] for line in text_list[1:-1]]
         self.text = "\n".join(text_list)
 
+    def _clear(self, length: int) -> None:
+        """Clear this element with whitespace of <length>.
+        """
+        past_text = self.text
+        self.text = " " * length
+        if type(self) is not BasicTextElement:
+            super(type(self), self).display()
+        else:
+            self.display()
+        self.text = past_text
 
-# TODO: replace with MenuItemElement
-class MenuTextElement(BasicTextElement):
-    """Menu text element for easier text element use with menus. Must be used inside a menu.
+
+class SpinnerElement(BasicTextElement):
+    """Spinner element representing an interactive value chooser.
     """
+    step_value: int
+    edges: Tuple[str, str]
+    selected_style: int
+    selected_edges: Tuple[str, str]
+    min_value: Optional[int]
+    value: int
+    max_value: Optional[int]
+    label_gap: float
+    label_element: Optional[BasicTextElement]
 
-    def __init__(self, text: str, style: int = curses.A_NORMAL) -> None:
-        # noinspection PyTypeChecker
-        super().__init__(None, 0, 0, text, style=style)
+    def __init__(self, screen: Screen, vertical: float, horizontal: float, step_value: int, *,
+                 offset: Tuple[int, int] = (0, 0), anchor: Anchor = Anchor.CENTER_CENTER,
+                 style: int = curses.A_NORMAL, edges: Tuple[str, str] = ("[", "]"), selected_style: int = curses.A_BOLD,
+                 selected_edges: Tuple[str, str] = ("<", ">"), min_value: Optional[int] = None,
+                 initial_value: int = 0, max_value: Optional[int] = None,
+                 label: str = "", label_gap: float = 0.1) -> None:
+        super().__init__(screen, vertical, horizontal, str(initial_value), offset=offset, anchor=anchor, style=style)
+
+        self.step_value = step_value
+        self.edges = edges
+        self.selected_style = selected_style
+        self.selected_edges = selected_edges
+        self.min_value = min_value
+        self.value = initial_value
+        self.max_value = max_value
+        self.label_gap = label_gap
+        if label:
+            self.label_element = BasicTextElement(screen, self.horizontal, self.vertical, label,
+                                                  anchor=Anchor.CENTER_LEFT, offset=self.offset)
+        else:
+            self.label_element = None
+
+    def increment(self, step: int = None) -> None:
+        """Increment the spinner by the step value or <step> if specified.
+        """
+        if step is None:
+            step = self.step_value
+
+        self.value += step
+        self.value = min(self.value, self.max_value if self.max_value is not None else self.value)
+        self.text = str(self.value)
+        self.display()
+
+    def decrement(self, step: int = None) -> None:
+        """Decrement the spinner by the step value or <step> if specified.
+        """
+        if step is None:
+            step = self.step_value
+
+        self.value -= step
+        self.value = max(self.value, self.min_value if self.min_value is not None else self.value)
+        self.text = str(self.value)
+        self.display()
+
+    def display(self) -> None:
+        max_digits = max(len(str(self.max_value)), len(str(self.min_value)))
+        max_edges = max(len(str(self.edges[0] + self.edges[1])),
+                        len(str(self.selected_edges[0] + self.selected_edges[1])))
+
+        self.text = self.edges[0] + self.text.center(max_digits) + self.edges[1]
+
+        if self.label_element:
+            self.horizontal += self.label_gap
+            self._clear(max_digits + max_edges)
+            super().display()
+            self.horizontal -= self.label_gap
+
+            self.label_element.set_position(vertical=self.vertical, horizontal=self.horizontal, offset=self.offset)
+            self.label_element.display()
+        else:
+            self._clear(max_digits + max_edges)
+            super().display()
+
+        self.text = self.text[1:-1]
+
+    def generate_selected_method(self, listener_screen: 'Screen') -> Callable[[], Any]:
+        """Generate the `selected method`.
+        """
+        def selected():
+            previous_edges = self.edges
+            self.edges = self.selected_edges
+            self.display()
+
+            listener_screen.watch_keys([
+                ("left", [curses.KEY_LEFT], "decrement", self.decrement, False),
+                ("right", [curses.KEY_RIGHT], "increment", self.increment, False),
+                ("enter", [curses.KEY_ENTER, 10], "back", lambda: None, True)
+            ],
+                vertical=0, horizontal=0, joiner="\n", anchor=Anchor.TOP_LEFT, offset=(1, 1),
+                listener_screen=listener_screen
+            )
+
+            self.edges = previous_edges
+            self.display()
+
+        return selected
 
 
 class MenuElement(Element):
     """Menu element that allows selection of a number of options.
     """
-    options: List[Tuple[BasicTextElement, Callable[[], Any], bool]]
+    options: List[Tuple[Union[Element, str], Callable[[], Any], bool]]
     spacing: int
     min_width: int
     edges: Tuple[str, str]
     selected_style: int
 
     selection: int
-    __elements: ElementContainer[BasicTextElement]
+    __elements: ElementContainer[Element]
 
     def __init__(self, screen: Screen, vertical: float, horizontal: float,
-                 options: List[Tuple[Union[BasicTextElement, str], Callable[[], Any], bool]], *,
+                 options: List[Tuple[Union[Element, str], Callable[[], Any], bool]], *,
                  offset: Tuple[int, int] = (0, 0), anchor: Anchor = Anchor.CENTER_CENTER,
                  spacing: int = 2, min_width: int = 0, edges: Tuple[str, str] = ("[", "]"),
                  initial_selection: int = -1, selected_style: int = curses.A_STANDOUT) -> None:
@@ -283,6 +363,12 @@ class MenuElement(Element):
         and the style of the current selection <selected_style> can all be set.
         """
         super().__init__(screen, vertical, horizontal, offset=offset, anchor=anchor)
+
+        self.__elements = ElementContainer()
+        for i, option in enumerate(options):
+            element = option[0] if isinstance(option[0], Element) else BasicTextElement(screen, 0, 0, option[0])
+            self.__elements.add_element(str(i), element)
+
         self.options = options
         self.spacing = spacing
         self.min_width = min_width
@@ -290,24 +376,19 @@ class MenuElement(Element):
         self.selected_style = selected_style
 
         self.selection = initial_selection
-        self.__elements = ElementContainer()
-        for i, option in enumerate(options):
-            element = option[0] if isinstance(option[0], MenuTextElement) else MenuTextElement(option[0])
-            self.__elements.add_element(str(i), element)
 
     def display(self) -> None:
         width = max(self.min_width, max(len(element.text) for element in self.__elements))
         for i, element in enumerate(self.__elements):
-            if not (element.text[0] == self.edges[0] and element.text[-1] == self.edges[1]):
-                element.text = self.edges[0] + element.text.center(width) + self.edges[1]
+            if isinstance(element, BasicTextElement) and len(element.text) > 0:
+                if not (element.text[0] == self.edges[0] and element.text[-1] == self.edges[1]):
+                    element.text = self.edges[0] + element.text.center(width) + self.edges[1]
             element.style = self.selected_style if self.selection == i else curses.A_NORMAL
             element.set_position(vertical=self.vertical,
                                  horizontal=self.horizontal,
                                  offset=(self.offset[0] + i * self.spacing, self.offset[1]),
                                  anchor=self.anchor)
             element.set_screen(self._screen)
-            element.update()
-        self.__elements.display()
         self._screen.stdscr.refresh()
 
     def up(self) -> None:
@@ -343,124 +424,3 @@ class MenuElement(Element):
             ("down", [curses.KEY_DOWN], "select below", self.down, False),
             ("enter", [curses.KEY_ENTER, 10], "select", self.select, False)
         ]
-#
-#     def attach_spinners(self, spinners: List['Spinner'], gap: float = 0.05) -> None:
-#         """Attach the given <spinners> to this menu with the given <gap>.
-#         """
-#         for i in range(min(len(spinners), len(self.options))):
-#             spinners[i].set_position(self.vertical, self.horizontal + gap, Anchor.CENTER_LEFT,
-#                                      offset=(i * self.spacing + self.offset[0], self.offset[1]))
-#             spinners[i].screen = self.screen
-#             spinners[i].update()
-#
-#
-# class Spinner:
-#     """Spinner object allowing selection of different values.
-#     """
-#     screen: 'Screen'
-#     min_value: int
-#     inital_value: int
-#     max_value: int
-#     step_value: int
-#
-#     vertical: float
-#     horizontal: float
-#     anchor: Anchor
-#     offset: Tuple[int, int]
-#
-#     value: int
-#
-#     def __init__(self, screen: 'Screen',
-#                  min_value: Optional[int] = None, initial_value: int = 0, max_value: Optional[int] = None,
-#                  step_value: int = 1, vertical: float = 0, horizontal: float = 0,
-#                  anchor: Anchor = Anchor.TOP_LEFT, offset: Tuple[int, int] = (0, 0)) -> None:
-#         """Initialize a spinner with the given <min_value>, <initial_value>, <max_value> and <step_value> positioned
-#         at <vertical> and <horizontal> percentages of the screen with the given <anchor> and the given <offset>.
-#         """
-#         self.screen = screen
-#         self.min_value = min_value
-#         self.inital_value = initial_value
-#         self.max_value = max_value
-#         self.step_value = step_value
-#
-#         self.vertical = vertical
-#         self.horizontal = horizontal
-#         self.anchor = anchor
-#         self.offset = offset
-#
-#         self.value = self.inital_value
-#         self.edges = ("", "")
-#
-#     def increment(self, step: int = None) -> None:
-#         """Increment the spinner by the step value or <step> if specified.
-#         """
-#         if step is None:
-#             step = self.step_value
-#
-#         self.value += step
-#         self.value = min(self.value, self.max_value if self.max_value is not None else self.value)
-#         self.update()
-#
-#     def decrement(self, step: int = None) -> None:
-#         """Decrement the spinner by the step value or <step> if specified.
-#         """
-#         if step is None:
-#             step = self.step_value
-#
-#         self.value -= step
-#         self.value = max(self.value, self.min_value if self.min_value is not None else self.value)
-#         self.update()
-#
-#     def update(self) -> None:
-#         """Update the spinner to display the current value.
-#         """
-#         max_digits = max(len(str(self.max_value)), len(str(self.min_value)))
-#         padding = ""
-#         if self.min_value < 0:
-#             padding = " "
-#
-#         self.screen.put(self.edges[0] + padding + str(self.value).zfill(max_digits) + self.edges[1],
-#                         self.vertical, self.horizontal, anchor=self.anchor, offset=self.offset)
-#
-#     def _clear_space(self) -> None:
-#         """Put whitespace in place of the spinner value.
-#         """
-#         max_digits = max(len(str(self.max_value)), len(str(self.min_value)))
-#         whitespace = " " * (max_digits + len(self.edges[0]) + len(self.edges[1]) + int(self.min_value < 0))
-#         self.screen.put(whitespace, self.vertical, self.horizontal, anchor=self.anchor, offset=self.offset)
-#
-#     def generate_selected_method(self, controls_screen: 'Screen', listener_screen: 'Screen') -> Callable[[], Any]:
-#         """Generate the `selected method`.
-#         """
-#         def selected():
-#             self.edges = ("< ", " >")
-#             self.update()
-#
-#             # FIXME: drawing of controls
-#             controls_screen.watch_keys([
-#                 ("left", [curses.KEY_LEFT], "decrement", self.decrement, False),
-#                 ("right", [curses.KEY_RIGHT], "increment", self.increment, False),
-#                 ("enter", [curses.KEY_ENTER, 10], "main menu", lambda: None, True)
-#             ],
-#                 vertical=0, horizontal=0, joiner="\n", anchor=Anchor.TOP_LEFT, offset=(1, 1),
-#                 listener_screen=listener_screen
-#             )
-#
-#             self._clear_space()
-#             self.edges = ("", "")
-#             self.update()
-#
-#         return selected
-#
-#     def set_position(self, vertical: Optional[float] = None, horizontal: Optional[float] = None,
-#                      anchor: Optional[Anchor] = None, offset: Tuple[int, int] = None) -> None:
-#         """Set all positional attributes of the spinner, any attribute not specified remains unchanged.
-#         """
-#         if vertical is not None:
-#             self.vertical = vertical
-#         if horizontal is not None:
-#             self.horizontal = horizontal
-#         if anchor is not None:
-#             self.anchor = anchor
-#         if offset is not None:
-#             self.offset = offset
