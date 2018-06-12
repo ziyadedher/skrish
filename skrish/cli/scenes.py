@@ -42,9 +42,9 @@ class IntroScene(Scene):
         screen.clear()
 
         intro = BasicTextElement(screen, 0.3, -0.2, TITLE, style=ColorPair.TITLE.pair)
-        intro.move(2, horizontal=0.7, skippable=True)
+        intro.move(1, horizontal=0.7, skippable=True)
 
-        return get_scene("main_menu")(), SceneControl.GOTO
+        return _scene_goto("main_menu")
 
 
 @register_scene("main_menu")
@@ -73,24 +73,22 @@ class MainMenuScene(Scene):
 
         return screen.watch_keys(self.menu.get_standard_keybinds())()
 
-    # @staticmethod
-    # def ask_quit() -> Callable[[], Tuple[Optional[Scene], SceneControl]]:
-    #     quit_screen = screen.dialogue(0.5, 0.5, 0.5, 0.5)
-    #
-    #     quit_screen.put("=== QUIT ===", 0.25, 0.5, curses.A_BOLD, anchor=Anchor.CENTER_CENTER)
-    #
-    #     text = "Are you sure you want to quit?"
-    #     quit_screen.put(text, 0.4, 0.5,
-    #                     ColorPair.WARNING.pair)
-    #
-    #     menu = MenuElement(quit_screen, 0.5, 0.5, [
-    #         ("NO", lambda: _scene_goto("NOOP"), True),
-    #         ("YES", lambda: _scene_goto("EXIT"), True),
-    #     ], min_width=10, selected_style=curses.A_BOLD)
-    #
-    #     return quit_screen.watch_keys(menu.get_standard_keybinds() + _close_dialogue(), listener_screen=screen)()
-#
-#
+    @staticmethod
+    def ask_quit() -> Callable[[], Tuple[Optional[Scene], SceneControl]]:
+        quit_screen = screen.dialogue(0.5, 0.5, 0.5, 0.5)
+
+        BasicTextElement(quit_screen, 0.25, 0.5, "=== QUIT ===", style=curses.A_BOLD).display()
+        BasicTextElement(quit_screen, 0.4, 0.5, "Are you sure you want to quit?", style=ColorPair.WARNING.pair).display()
+
+        menu = MenuElement(quit_screen, 0.5, 0.5, [
+            ("NO", lambda: _scene_goto("NOOP"), True),
+            ("YES", lambda: _scene_goto("EXIT"), True),
+        ], min_width=10, initial_selection=0)
+        menu.display()
+
+        return quit_screen.watch_keys(menu.get_standard_keybinds() + _close_dialogue(), listener_screen=screen)()
+
+
 # @register_scene("options")
 # class OptionsScene(Scene):
 #     def display(self) -> Tuple[Optional[Scene], SceneControl]:

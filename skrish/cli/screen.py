@@ -16,7 +16,6 @@ class Screen:
 
         # Forward basic functionality
         self.clear = self.stdscr.clear
-        self.refresh = self.stdscr.refresh
         self.box = self.stdscr.box
 
     # def grid_screen(self, dimensions_list: List[Tuple[float, float, float, float]]) -> List['Screen']:
@@ -42,33 +41,33 @@ class Screen:
     #             int(y_offset), int(x_offset)
     #         )))
     #     return screens
-    #
-    # def dialogue(self, vertical_size: float, horizontal_size: float, vertical_offset: float, horizontal_offset: float,
-    #              anchor: Anchor = Anchor.CENTER_CENTER) -> 'Screen':
-    #     """Generates a dialogue box sub-screen based off the given <dimensions>, and returns the sub-screen.
-    #     """
-    #     y_max, x_max = self.stdscr.getmaxyx()
-    #     y_size, x_size = y_max * vertical_size, x_max * horizontal_size
-    #     y_anchor_offset, x_anchor_offset = anchor.offset(y_size, x_size)
-    #     y_offset, x_offset = y_max * vertical_offset + y_anchor_offset, x_max * horizontal_offset + x_anchor_offset
-    #
-    #     # Counteract truncating off the edge, cannot round because it is inconsistent (even-odd).
-    #     if y_size + y_offset == y_max:
-    #         if int(y_size) < y_size:
-    #             y_size += 1
-    #     if x_size + x_offset == x_max:
-    #         if int(x_size) < x_size:
-    #             x_size += 1
-    #
-    #     screen = Screen(self.stdscr.derwin(
-    #         int(y_size), int(x_size), int(y_offset), int(x_offset)
-    #     ))
-    #
-    #     screen.clear()
-    #     screen.box()
-    #     screen.refresh()
-    #
-    #     return screen
+
+    def dialogue(self, vertical_size: float, horizontal_size: float, vertical_offset: float, horizontal_offset: float,
+                 anchor: Anchor = Anchor.CENTER_CENTER) -> 'Screen':
+        """Generates a dialogue box sub-screen based off the given <dimensions>, and returns the sub-screen.
+        """
+        y_max, x_max = self.stdscr.getmaxyx()
+        y_size, x_size = y_max * vertical_size, x_max * horizontal_size
+        y_anchor_offset, x_anchor_offset = anchor.offset(y_size, x_size)
+        y_offset, x_offset = y_max * vertical_offset + y_anchor_offset, x_max * horizontal_offset + x_anchor_offset
+
+        # Counteract truncating off the edge, cannot round because it is inconsistent (even-odd).
+        if y_size + y_offset == y_max:
+            if int(y_size) < y_size:
+                y_size += 1
+        if x_size + x_offset == x_max:
+            if int(x_size) < x_size:
+                x_size += 1
+
+        screen = Screen(self.stdscr.derwin(
+            int(y_size), int(x_size), int(y_offset), int(x_offset)
+        ))
+
+        screen.clear()
+        screen.box()
+        screen.stdscr.refresh()
+
+        return screen
 
     def watch_keys(self, options: List[Tuple[str, List[int], str, Callable[[], Any], bool]] = None,
                    listener_screen: 'Screen' = None, vertical: float = 0.95, horizontal: float = 0.5,

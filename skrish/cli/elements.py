@@ -33,6 +33,8 @@ class Element:
         self.anchor = anchor
         self.__should_display = True
 
+        self.update()
+
     def set_position(self, *, vertical: float = None, horizontal: float = None,
                      offset: Tuple[int, int] = None, anchor: Anchor = None) -> None:
         """Set the position of this element in <vertical> and <horizontal> percentages of the screen with given
@@ -68,7 +70,7 @@ class Element:
             self.__should_display = True
 
     def display(self) -> None:
-        """Display this element on the set screen.
+        """Display this element on the set screen and refresh.
         """
         raise NotImplementedError
 
@@ -100,6 +102,9 @@ class Element:
             if skippable and self._screen.stdscr.getch() > 0:
                 self._screen.clear()
                 i = 1
+            # .getch() refreshes the screen, so only refresh if needed
+            if not skippable:
+                self._screen.stdscr.refresh()
 
             # Manage timing
             cur_time = time.time()
@@ -224,6 +229,8 @@ class BasicTextElement(Element):
                                        line, self.style)
             counter += 1
 
+        self._screen.stdscr.refresh()
+
     def _move_pre(self) -> None:
         # Pad the message with spaces to not need to clear
         text_list = self.text.strip("\n").split("\n")
@@ -241,6 +248,7 @@ class BasicTextElement(Element):
         self.text = "\n".join(text_list)
 
 
+# TODO: replace with MenuItemElement
 class MenuTextElement(BasicTextElement):
     """Menu text element for easier text element use with menus. Must be used inside a menu.
     """
@@ -266,7 +274,7 @@ class MenuElement(Element):
                  options: List[Tuple[Union[BasicTextElement, str], Callable[[], Any], bool]], *,
                  offset: Tuple[int, int] = (0, 0), anchor: Anchor = Anchor.CENTER_CENTER,
                  spacing: int = 2, min_width: int = 0, edges: Tuple[str, str] = ("[", "]"),
-                 selected_style: int = curses.A_STANDOUT) -> None:
+                 initial_selection: int = -1, selected_style: int = curses.A_STANDOUT) -> None:
         """Initialize this menu element with basic attributes and menu attributes.
 
         Menu attributes are the <options> to include which consists of a list of tuples each representing an entry
@@ -281,7 +289,7 @@ class MenuElement(Element):
         self.edges = edges
         self.selected_style = selected_style
 
-        self.selection = -1
+        self.selection = initial_selection
         self.__elements = ElementContainer()
         for i, option in enumerate(options):
             element = option[0] if isinstance(option[0], MenuTextElement) else MenuTextElement(option[0])
@@ -300,6 +308,7 @@ class MenuElement(Element):
             element.set_screen(self._screen)
             element.update()
         self.__elements.display()
+        self._screen.stdscr.refresh()
 
     def up(self) -> None:
         """Go up in the list.

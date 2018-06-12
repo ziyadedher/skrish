@@ -37,7 +37,7 @@ class Interface:
             SceneManager.call_scene(identifier, no_back=True)
 
         def exit(self) -> None:
-            """Exit the interface cleanly with no error.
+            """Exit the interface cleanly and restore regular terminal configuration.
             """
             self.__curses_deconfig()
             curses.endwin()
@@ -53,7 +53,7 @@ class Interface:
             self.screen.stdscr.keypad(True)  # Parse weird keys
 
         def __curses_deconfig(self) -> None:
-            """Deconfigure curses to revert nice terminal settings.
+            """Deconfigure curses to revert regular terminal settings.
             """
             curses.echo()
             curses.nocbreak()
