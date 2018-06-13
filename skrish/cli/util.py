@@ -1,6 +1,6 @@
 """Provides useful CLI utilities for more efficient displaying of information.
 """
-from typing import Any, Tuple, List, Callable, Optional
+from typing import Any, Tuple
 from enum import Enum
 
 import curses

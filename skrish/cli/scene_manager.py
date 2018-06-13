@@ -1,6 +1,5 @@
 """Manages all interface scenes.
 """
-import sys
 from enum import Enum
 from typing import Iterable, Callable, Dict, List, Tuple, Optional
 from skrish.cli.elements import ElementContainer

@@ -7,6 +7,7 @@ from skrish.cli.screen import Screen
 from skrish.game.game import Game
 
 
+# Interface is a singleton
 class Interface:
     """Manages and controls the flow of game scenes.
     """

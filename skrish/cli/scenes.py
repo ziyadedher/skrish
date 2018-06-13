@@ -3,7 +3,7 @@
 import curses
 from typing import Callable, Tuple, Optional
 
-from skrish.cli.elements import ElementContainer, BasicTextElement, MenuElement, Element, SpinnerElement
+from skrish.cli.elements import BasicTextElement, MenuListElement, SpinnerElement
 from skrish.cli.util import Anchor, ColorPair
 from skrish.cli.scene_manager import Scene, SceneControl, SceneManager
 from skrish.cli.cli import Interface
@@ -49,13 +49,13 @@ class IntroScene(Scene):
 
 @register_scene("main_menu")
 class MainMenuScene(Scene):
-    menu: MenuElement
+    menu: MenuListElement
 
     def __init__(self) -> None:
         super().__init__()
 
-        self.menu = MenuElement(screen, 0.5, 0.5, [
-            ("START", lambda: _scene_goto("character_creation", remove_history=True), True),
+        self.menu = MenuListElement(screen, 0.5, 0.5, [
+            ("START", lambda: _scene_goto("character_creation"), True),
             ("OPTIONS", lambda: _scene_goto("options"), True),
             ("CREDITS", lambda: _scene_goto("credits"), True),
             ("QUIT", self.ask_quit, True)
@@ -76,10 +76,12 @@ class MainMenuScene(Scene):
     def ask_quit() -> Callable[[], Tuple[Optional[Scene], SceneControl]]:
         quit_screen = screen.dialogue(0.5, 0.5, 0.5, 0.5)
 
-        BasicTextElement(quit_screen, 0.25, 0.5, "=== QUIT ===", style=curses.A_BOLD).display()
-        BasicTextElement(quit_screen, 0.4, 0.5, "Are you sure you want to quit?", style=ColorPair.WARNING.pair).display()
+        BasicTextElement(quit_screen, 0.25, 0.5, "=== QUIT ===",
+                         style=curses.A_BOLD).display()
+        BasicTextElement(quit_screen, 0.4, 0.5, "Are you sure you want to quit?",
+                         style=ColorPair.WARNING.pair).display()
 
-        menu = MenuElement(quit_screen, 0.5, 0.5, [
+        menu = MenuListElement(quit_screen, 0.5, 0.5, [
             ("NO", lambda: _scene_goto("NOOP"), True),
             ("YES", lambda: _scene_goto("EXIT"), True),
         ], min_width=10, initial_selection=0)
@@ -132,13 +134,13 @@ class CharacterCreationScene(Scene):
         ])
 
         spinners = [
-            SpinnerElement(screen, 0, 0, 1, min_value=0, max_value=50, initial_value=10, label="Strength"),
-            SpinnerElement(screen, 0, 0, 1, min_value=0, max_value=50, initial_value=10, label="Attack"),
-            SpinnerElement(screen, 0, 0, 1, min_value=0, max_value=50, initial_value=10, label="Defence"),
-            SpinnerElement(screen, 0, 0, 1, min_value=0, max_value=50, initial_value=10, label="Agility"),
-            SpinnerElement(screen, 0, 0, 1, min_value=0, max_value=50, initial_value=10, label="Intelligence")
+            SpinnerElement(screen, 0, 0, 1, min_value=1, max_value=100, initial_value=10, label="Strength"),
+            SpinnerElement(screen, 0, 0, 1, min_value=1, max_value=100, initial_value=10, label="Attack"),
+            SpinnerElement(screen, 0, 0, 1, min_value=1, max_value=100, initial_value=10, label="Defence"),
+            SpinnerElement(screen, 0, 0, 1, min_value=1, max_value=100, initial_value=10, label="Agility"),
+            SpinnerElement(screen, 0, 0, 1, min_value=1, max_value=100, initial_value=10, label="Intelligence")
         ]
-        self.menu = MenuElement(self.character, 0, 0, [
+        self.menu = MenuListElement(self.character, 0, 0, [
             (spinners[0], spinners[0].generate_selected_method(screen), False),
             (spinners[1], spinners[1].generate_selected_method(screen), False),
             (spinners[2], spinners[2].generate_selected_method(screen), False),
@@ -183,9 +185,9 @@ class CharacterCreationScene(Scene):
                          "Are you sure you want to go back to the main menu and discard your character?",
                          style=ColorPair.WARNING.pair).display()
 
-        menu = MenuElement(sure, 0.5, 0.5, [
+        menu = MenuListElement(sure, 0.5, 0.5, [
             ("NO", lambda: _scene_goto("NOOP"), True),
-            ("YES", lambda: _scene_goto("EXIT"), True),
+            ("YES", lambda: _scene_goto("BACK"), True),
         ], min_width=10, initial_selection=0)
         menu.display()
 

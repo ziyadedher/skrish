@@ -61,23 +61,12 @@ class Element:
         """
         raise NotImplementedError
 
-    def _move_pre(self) -> None:
-        """Take pre-movement actions.
-        """
-        pass
-
-    def _move_post(self) -> None:
-        """Take post-movement actions.
-        """
-        pass
-
     def move(self, secs: float, *,
              vertical: float = 0, horizontal: float = 0, skippable: bool = True) -> None:
         """Move this element in <secs> seconds a delta of <vertical> and <horizontal> percentages of the screen.
         If <skippable> is set, then the animation can be skipped.
         """
-        self._move_pre()
-
+        # Watch for keys without delay
         if skippable:
             self._screen.stdscr.nodelay(True)
 
@@ -86,10 +75,11 @@ class Element:
         i = 0
         last_time = time.time()
         while i < 1:
+            # Check if any character was pressed to skip movement
             if skippable and self._screen.stdscr.getch() > 0:
                 self._screen.clear()
                 i = 1
-            # .getch() refreshes the screen, so only refresh if needed
+            # .getch() refreshes the screen, so refresh only if required
             if not skippable:
                 self._screen.stdscr.refresh()
 
@@ -106,10 +96,9 @@ class Element:
 
             self.display()
 
+        # Stop watching for keys without delay
         if skippable:
             self._screen.stdscr.nodelay(False)
-
-        self._move_post()
 
 
 T = TypeVar('T')
@@ -123,6 +112,7 @@ class ElementContainer(Iterable, Generic[T]):
     def __init__(self) -> None:
         """Initialize this element watcher.
         """
+        # TODO: implement type checking that <T> is an actual element type, otherwise `self.display` will error
         self._elements = {}
 
     def __setitem__(self, identifier: str, element: T) -> None:
@@ -170,40 +160,40 @@ class BasicTextElement(Element):
         self.style = style
 
     def display(self) -> None:
+        # Split the text up and strip any unneeded whitespace
         text_list = self.text.strip("\n").split("\n")
 
         y_max, x_max = self._screen.stdscr.getmaxyx()
         y, x = self._screen.position_message(text_list, self.anchor, self.vertical, self.horizontal)
 
-        num_lines = len(text_list)
-        max_line = max(len(line) for line in text_list)
-        counter = 0
-
         # FIXME: moving out of bottom-right corner crashes
-        # If the message is out of bounds, then cut it off to prevent an error considering the manual offset
-        new_text_list = text_list
+        # Cut off vertical out-of-bounds lines of the text
+        num_lines = len(text_list)
         if y + self.offset[0] < 0:
-            new_text_list = text_list[-(y + self.offset[0]):]
+            text_list = text_list[-(y + self.offset[0]):]
             y = self.offset[0]
         if y + self.offset[0] + num_lines > y_max:
             if y + self.offset[0] > y_max:
                 y = y_max - self.offset[0]
-            new_text_list = text_list[:y_max - (y + self.offset[0])]
+            text_list = text_list[:y_max - (y + self.offset[0])]
 
+        # Cut off line out-of-bounds beginnings or ends
+        max_line = max(len(line) for line in text_list)
         if x + self.offset[1] < 0:
-            new_text_list = [line[-(x + self.offset[1]):] for line in new_text_list]
+            text_list = [line[-(x + self.offset[1]):] for line in text_list]
             x = self.offset[1]
         if x + self.offset[1] + max_line > x_max:
             if x + self.offset[1] > x_max:
                 x = x_max - self.offset[1]
-            new_text_list = [line[:x_max - (x + self.offset[1])] for line in new_text_list]
+            text_list = [line[:x_max - (x + self.offset[1])] for line in text_list]
 
-        for line in new_text_list:
+        # Display every line that needs to be displayed in its correct location
+        counter = 0
+        for line in text_list:
             if not line:
                 continue
 
             cursor_y, cursor_x = self._screen.stdscr.getyx()
-
             self._screen.stdscr.addstr((y if y is not None else cursor_y) + counter + self.offset[0],
                                        (x if x is not None else cursor_x) + self.offset[1],
                                        line, self.style)
@@ -212,7 +202,7 @@ class BasicTextElement(Element):
         self._screen.stdscr.refresh()
 
     def move(self, *args, **kwargs) -> None:
-        # Pad the message with spaces to not need to clear
+        # Pad the message with spaces to not need to clear after every step of movement
         text_list = self.text.strip("\n").split("\n")
         h_padding, v_padding = " ", (" " * max(len(line) for line in text_list) if text_list else 0)
         text_list = [(h_padding + line + h_padding) for line in text_list]
@@ -225,15 +215,20 @@ class BasicTextElement(Element):
         text_list = [line[1:-1] for line in text_list[1:-1]]
         self.text = "\n".join(text_list)
 
-    def _clear(self, length: int) -> None:
-        """Clear this element with whitespace of <length>.
+    def _clear(self, length: int, height: int = 1) -> None:
+        """Clear this element with whitespace of length <length> and height <height>.
         """
+        # Set the text to whitespace
         past_text = self.text
-        self.text = " " * length
+        self.text = "\n".join((" " * length) * height)
+
+        # Make sure we use the regular display function rather than whatever the subclasses function is
         if type(self) is not BasicTextElement:
             super(type(self), self).display()
         else:
             self.display()
+
+        # Revert the text
         self.text = past_text
 
 
@@ -256,6 +251,15 @@ class SpinnerElement(BasicTextElement):
                  selected_edges: Tuple[str, str] = ("<", ">"), min_value: Optional[int] = None,
                  initial_value: int = 0, max_value: Optional[int] = None,
                  label: str = "", label_gap: float = 0.1) -> None:
+        """Initialize this spinner element with basic attributes, text attributes, and spinner attributes.
+
+        No <text> attribute is required for the spinner.
+
+        Spinner attributes are <step_value> representing the step to take through each increment or decrement, the
+        <edges> around the spinner and the <selected_style> and <selected_edges> to set to be the style and edges when
+        selected, the <min_value>, <initial_value>, and <max_value>, and a <label> with <label_gap> representing a piece
+        of text placed before the spinner in percentage gap.
+        """
         super().__init__(screen, vertical, horizontal, str(initial_value), offset=offset, anchor=anchor, style=style)
 
         self.step_value = step_value
@@ -266,6 +270,8 @@ class SpinnerElement(BasicTextElement):
         self.value = initial_value
         self.max_value = max_value
         self.label_gap = label_gap
+
+        # Only create a valid label element if the label has been set
         if label:
             self.label_element = BasicTextElement(screen, self.horizontal, self.vertical, label,
                                                   anchor=Anchor.CENTER_LEFT, offset=self.offset)
@@ -278,6 +284,7 @@ class SpinnerElement(BasicTextElement):
         if step is None:
             step = self.step_value
 
+        # Update the value, text, and display
         self.value += step
         self.value = min(self.value, self.max_value if self.max_value is not None else self.value)
         self.text = str(self.value)
@@ -289,6 +296,7 @@ class SpinnerElement(BasicTextElement):
         if step is None:
             step = self.step_value
 
+        # Update the value, text, and display
         self.value -= step
         self.value = max(self.value, self.min_value if self.min_value is not None else self.value)
         self.text = str(self.value)
@@ -299,8 +307,10 @@ class SpinnerElement(BasicTextElement):
         max_edges = max(len(str(self.edges[0] + self.edges[1])),
                         len(str(self.selected_edges[0] + self.selected_edges[1])))
 
+        # Apply the edges before displaying
         self.text = self.edges[0] + self.text.center(max_digits) + self.edges[1]
 
+        # Display the label if required, pushing the spinner to the side
         if self.label_element:
             self.horizontal += self.label_gap
             self._clear(max_digits + max_edges)
@@ -313,11 +323,13 @@ class SpinnerElement(BasicTextElement):
             self._clear(max_digits + max_edges)
             super().display()
 
+        # Remove the edges from the text
         self.text = self.text[1:-1]
 
     def generate_selected_method(self, listener_screen: 'Screen') -> Callable[[], Any]:
         """Generate the `selected method`.
         """
+        # TODO: reimplement, this sucks
         def selected():
             previous_edges = self.edges
             self.edges = self.selected_edges
@@ -338,8 +350,8 @@ class SpinnerElement(BasicTextElement):
         return selected
 
 
-class MenuElement(Element):
-    """Menu element that allows selection of a number of options.
+class MenuListElement(Element):
+    """Menu list element that allows selection of a number of options.
     """
     options: List[Tuple[Union[Element, str], Callable[[], Any], bool]]
     spacing: int
@@ -364,6 +376,7 @@ class MenuElement(Element):
         """
         super().__init__(screen, vertical, horizontal, offset=offset, anchor=anchor)
 
+        # Grab all of the menu items and store them, generating basic text elements if required
         self.__elements = ElementContainer()
         for i, option in enumerate(options):
             element = option[0] if isinstance(option[0], Element) else BasicTextElement(screen, 0, 0, option[0])
@@ -380,9 +393,12 @@ class MenuElement(Element):
     def display(self) -> None:
         width = max(self.min_width, max(len(element.text) for element in self.__elements))
         for i, element in enumerate(self.__elements):
+            # If the element is text and does not have the required edges, apply them
             if isinstance(element, BasicTextElement) and len(element.text) > 0:
                 if not (element.text[0] == self.edges[0] and element.text[-1] == self.edges[1]):
                     element.text = self.edges[0] + element.text.center(width) + self.edges[1]
+
+            # Display the element in the correct positioning
             element.style = self.selected_style if self.selection == i else curses.A_NORMAL
             element.set_position(vertical=self.vertical,
                                  horizontal=self.horizontal,
@@ -408,6 +424,7 @@ class MenuElement(Element):
     def select(self) -> Optional[Callable[[], Any]]:
         """Select the currently highlighted option.
         """
+        # TODO: probably want to rework the whole selection system
         if self.selection < 0:
             return
 
@@ -419,6 +436,7 @@ class MenuElement(Element):
     def get_standard_keybinds(self) -> List[Tuple[str, List[int], str, Callable[[], Any], bool]]:
         """Get the standard keybinds for menu navigation.
         """
+        # TODO: reimplement, this sucks
         return [
             ("up", [curses.KEY_UP], "select above", self.up, False),
             ("down", [curses.KEY_DOWN], "select below", self.down, False),
