@@ -220,7 +220,7 @@ class BasicTextElement(Element):
         """
         # Set the text to whitespace
         past_text = self.text
-        self.text = "\n".join((" " * length) * height)
+        self.text = "\n".join([" " * length] * height)
 
         # Make sure we use the regular display function rather than whatever the subclasses function is
         if type(self) is not BasicTextElement:
